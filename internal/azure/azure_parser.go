@@ -1,7 +1,7 @@
 package azure
 
 import (
-	"github.com/aumahesh/policyparser/pkg/policy"
+	"github.com/paullesiak/policyparser/pkg/policy"
 )
 
 type AzureParser struct {

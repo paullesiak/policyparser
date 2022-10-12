@@ -3,10 +3,10 @@ package parser
 import (
 	"fmt"
 
-	"github.com/aumahesh/policyparser/internal/aws"
-	"github.com/aumahesh/policyparser/internal/azure"
-	"github.com/aumahesh/policyparser/internal/gcp"
-	"github.com/aumahesh/policyparser/pkg/policy"
+	"github.com/paullesiak/policyparser/internal/aws"
+	"github.com/paullesiak/policyparser/internal/azure"
+	"github.com/paullesiak/policyparser/internal/gcp"
+	"github.com/paullesiak/policyparser/pkg/policy"
 )
 
 const (

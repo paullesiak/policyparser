@@ -8,16 +8,14 @@ clean: parser-clean
 
 parser-build:
 	echo "Compiling policyparser"
-	mkdir -p bin/ && go build -o bin/parser github.com/aumahesh/policyparser/cmd
+	mkdir -p bin/ && go build -o bin/parser github.com/paullesiak/policyparser/cmd
 
 parser-test:
 	echo "Running tests"
-	go test github.com/aumahesh/policyparser/...
+	go test github.com/paullesiak/policyparser/...
 
 parser-fmt:
 	gofmt -w .
 
 parser-clean:
 	rm -rf bin/parser
-
-

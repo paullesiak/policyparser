@@ -10,7 +10,7 @@ import (
 	"github.com/alecthomas/participle/v2"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/aumahesh/policyparser/pkg/policy"
+	"github.com/paullesiak/policyparser/pkg/policy"
 )
 
 type AwsParser struct {

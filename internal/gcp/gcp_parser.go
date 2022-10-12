@@ -1,7 +1,7 @@
 package gcp
 
 import (
-	"github.com/aumahesh/policyparser/pkg/policy"
+	"github.com/paullesiak/policyparser/pkg/policy"
 )
 
 type GcpParser struct {

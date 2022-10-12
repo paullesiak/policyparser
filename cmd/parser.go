@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
-	"github.com/aumahesh/policyparser/pkg/parser"
+	"github.com/paullesiak/policyparser/pkg/parser"
 )
 
 func main() {
