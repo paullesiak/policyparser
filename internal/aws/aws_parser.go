@@ -2,6 +2,7 @@ package aws
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -40,19 +41,23 @@ func NewAwsPolicyParser(policyText string, escaped bool) (*AwsParser, error) {
 }
 
 func (a *AwsParser) Parse() error {
-	parser := participle.MustBuild(a.awsPolicy,
+	parser, err := participle.Build[AwsPolicy](
 		participle.UseLookahead(2),
 	)
-	err := parser.ParseString("", a.policyText, a.awsPolicy, participle.AllowTrailing(true))
-	// repr.Println(a.awsPolicy, repr.Hide(&lexer.Position{}))
+	if err != nil {
+		return fmt.Errorf("error building parser: %w", err)
+	}
+	ast, err := parser.ParseString("", a.policyText, participle.AllowTrailing(true))
 
 	if err == nil {
 		a.parsed = true
-		a.constructPolicy()
+		a.constructPolicy(ast)
 	} else {
-		perr := err.(participle.UnexpectedTokenError)
-		log.Errorf("Error parsing policy: %s : %s", perr.Error(), perr.Unexpected.Pos.String())
-		a.error = err
+		var p *participle.UnexpectedTokenError
+		if errors.As(err, &p) {
+			log.Errorf("Error parsing policy: %s : %s", p.Error(), p.Unexpected.Pos.String())
+			a.error = err
+		}
 	}
 	return err
 }
@@ -91,17 +96,17 @@ func (a *AwsParser) WriteJson(filename string) error {
 	return fmt.Errorf("no policies parsed yet")
 }
 
-func (a *AwsParser) constructPolicy() {
+func (a *AwsParser) constructPolicy(ast *AwsPolicy) {
 	if a.awsPolicy == nil {
 		return
 	}
 
 	a.policies = []*policy.Policy{}
 
-	id := StringValue(a.awsPolicy.Block.Id)
-	version := StringValue(a.awsPolicy.Block.Version)
+	id := StringValue(ast.Block.Id)
+	version := StringValue(ast.Block.Version)
 
-	for index, statement := range a.awsPolicy.Block.Statement {
+	for index, statement := range ast.Block.Statement {
 		pol := &policy.Policy{
 			Id:      fmt.Sprintf("%s:%d", id, index),
 			Version: version,
