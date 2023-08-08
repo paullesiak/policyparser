@@ -1,9 +1,5 @@
 package aws
 
-import (
-	"github.com/alecthomas/participle/v2/lexer"
-)
-
 /*
 	Policy Grammar for AWS: https://docs.amazonaws.cn/en_us/IAM/latest/UserGuide/reference_policies_grammar.html
 
@@ -56,28 +52,20 @@ awsPolicy  = {
 */
 
 type AwsPolicy struct {
-	Pos lexer.Position
-
 	Block *Block `"{" @@ "}"`
 }
 
 type Block struct {
-	Pos lexer.Position
-
 	Version   *string      `( "\"Version\"" ":" @String (",")? )?`
 	Id        *string      `( "\"Id\"" ":" @String (",")? )?`
 	Statement []*Statement `"\"Statement\"" ":" "[" "{" @@ "}" ( ( "," "{" @@  "}" )* )? "]"`
 }
 
 type Statement struct {
-	Pos lexer.Position
-
 	Elements []*Elements `@@ ( ("," @@)* )?`
 }
 
 type Elements struct {
-	Pos lexer.Position
-
 	Sid          *string    `"\"Sid\"" ":" @String`
 	Effect       *string    `| "\"Effect\"" ":" @String`
 	Principal    *Principal `| "\"Principal\"" ":" @@`
@@ -90,29 +78,21 @@ type Elements struct {
 }
 
 type AnyOrList struct {
-	Pos lexer.Position
-
 	Item *Item   `@@`
 	List []*Item `| "[" @@ ( ( "," @@ )* )? "]"`
 }
 
 type Item struct {
-	Pos lexer.Position
-
 	Any bool    `@("\"*\"")`
 	One *string `| @String`
 }
 
 type Principal struct {
-	Pos lexer.Position
-
 	Any  bool             `@("\"*\"")`
 	List []*PrincipalList `| "{" @@ ( ("," @@ )* )? "}"`
 }
 
 type PrincipalList struct {
-	Pos lexer.Position
-
 	Aws       *AnyOrList `"\"AWS\"" ":" @@`
 	Federated *AnyOrList `| "\"Federated\"" ":" @@`
 	Canonical *AnyOrList `| "\"CanonicalUser\"" ":" @@`
@@ -120,35 +100,25 @@ type PrincipalList struct {
 }
 
 type Condition struct {
-	Pos lexer.Position
-
 	ConditionList []*ConditionList `"{" @@ ( ( (",") @@ )* )? "}"`
 }
 
 type ConditionList struct {
-	Pos lexer.Position
-
 	Operation    *string       `@String ":"`
 	KeyValueList *KeyValueList `"{" @@ "}"`
 }
 
 type KeyValueList struct {
-	Pos lexer.Position
-
 	Key   *string    `@String ":"`
 	Value *ValueList `@@`
 }
 
 type ValueList struct {
-	Pos lexer.Position
-
 	One  *Value   `@@`
 	List []*Value `| "[" @@ ( ("," @@ )* )? "]"`
 }
 
 type Value struct {
-	Pos lexer.Position
-
 	OneString *string `@String`
 	OneNumber *int64  `| @Int`
 	BoolTrue  *bool   `| @"true"`
