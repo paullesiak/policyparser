@@ -1,7 +1,7 @@
 package aws
 
 /*
-	Policy Grammar for AWS: https://docs.amazonaws.cn/en_us/IAM/latest/UserGuide/reference_policies_grammar.html
+	Policy Grammar for AWS: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_grammar.html
 
 awsPolicy  = {
      <version_block?>
@@ -56,10 +56,23 @@ type AwsPolicy struct {
 }
 
 type Block struct {
+	VersionA  *string      `( "\"Version\"" ":" @String (",")? )?`
+	Id        *string      `( "\"Id\"" ":" @String (",")? )?`
+	Statement []*Statement `( "\"Statement\"" ":" "[" "{" @@ "}" ( ( "," "{" @@  "}" )* )? "]" (",")? )?`
+	VersionB  *string      `( "\"Version\"" ":" @String (",")? )?`
+}
+
+type BlockContents struct {
 	Version   *string      `( "\"Version\"" ":" @String (",")? )?`
 	Id        *string      `( "\"Id\"" ":" @String (",")? )?`
-	Statement []*Statement `"\"Statement\"" ":" "[" "{" @@ "}" ( ( "," "{" @@  "}" )* )? "]"`
+	Statement []*Statement `( "\"Statement\"" ":" "[" "{" @@ "}" ( ( "," "{" @@  "}" )* )? "]" (",")? )?`
 }
+
+// type BlockOld struct {
+// 	Version   *string      `( "\"Version\"" ":" @String (",")? )?`
+// 	Id        *string      `( "\"Id\"" ":" @String (",")? )?`
+// 	Statement []*Statement `"\"Statement\"" ":" "[" "{" @@ "}" ( ( "," "{" @@  "}" )* )? "]"`
+// }
 
 type Statement struct {
 	Elements []*Elements `@@ ( ("," @@)* )?`
@@ -104,8 +117,8 @@ type Condition struct {
 }
 
 type ConditionList struct {
-	Operation    *string       `@String ":"`
-	KeyValueList *KeyValueList `"{" @@ "}"`
+	Operation    *string         `@String ":"`
+	KeyValueList []*KeyValueList `"{" @@ ( ( "," @@)*)? "}"`
 }
 
 type KeyValueList struct {

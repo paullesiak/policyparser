@@ -14,8 +14,8 @@ type Policy struct {
 }
 
 type Condition struct {
-	Operation string      `json:"operator" yaml:"operator"`     // condition operator
-	Key       string      `json:"key" yaml:"key"`               // name of the parameter that should match the value
-	Value     interface{} `json:"values" yaml:"values"`         // is a list of either string, int64 or bool
-	Type      string      `json:"value-type" yaml:"value-type"` // string, int64, bool
+	Operation string        `json:"operator" yaml:"operator"`     // condition operator
+	Key       []string      `json:"key" yaml:"key"`               // name of the parameter that should match the value
+	Value     []interface{} `json:"values" yaml:"values"`         // is a list of either string, int64 or bool
+	Type      []string      `json:"value-type" yaml:"value-type"` // string, int64, bool
 }

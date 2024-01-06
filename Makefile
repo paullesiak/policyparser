@@ -12,7 +12,7 @@ parser-build:
 
 parser-test:
 	echo "Running tests"
-	go test github.com/paullesiak/policyparser/...
+	go test -v -count 1 github.com/paullesiak/policyparser/...
 
 parser-fmt:
 	gofmt -w .
