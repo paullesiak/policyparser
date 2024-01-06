@@ -20,15 +20,29 @@ type AwsParser struct {
 	policies   []*policy.Policy
 	parsed     bool
 	error      error
+	Trace      bool
+}
+
+// recursiveUnescape will repeatedly attempt to unescape the string until the input is equal to the unescaped output.
+// This is because for some reason, AWS sometimes double encodes values.
+func recursiveUnescape(policyText string) (string, error) {
+	pt, err := url.QueryUnescape(policyText)
+	if err != nil {
+		return policyText, err
+	}
+	if pt == policyText {
+		return pt, nil
+	}
+	return recursiveUnescape(pt)
 }
 
 func NewAwsPolicyParser(policyText string, escaped bool) (*AwsParser, error) {
 	var err error
 	pt := policyText
 	if escaped {
-		pt, err = url.QueryUnescape(policyText)
+		pt, err = recursiveUnescape(policyText)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error unescaping policy text: %w", err)
 		}
 	}
 	// log.Debugf("/n%s", pt)
@@ -47,7 +61,11 @@ func (a *AwsParser) Parse() error {
 	if err != nil {
 		return fmt.Errorf("error building parser: %w", err)
 	}
-	ast, err := parser.ParseString("", a.policyText, participle.AllowTrailing(true))
+	opts := []participle.ParseOption{participle.AllowTrailing(true)}
+	if a.Trace {
+		opts = append(opts, participle.Trace(os.Stdout))
+	}
+	ast, err := parser.ParseString("", a.policyText, opts...)
 
 	if err == nil {
 		a.parsed = true
@@ -211,7 +229,7 @@ func (a *AwsParser) getCondition(c *Condition) []policy.Condition {
 		return nil
 	}
 
-	cm := []policy.Condition{}
+	var cm []policy.Condition
 
 	for _, cc := range c.ConditionList {
 		op := StringValue(cc.Operation)
@@ -221,86 +239,90 @@ func (a *AwsParser) getCondition(c *Condition) []policy.Condition {
 		if cc.KeyValueList == nil {
 			continue
 		}
-		ck := StringValue(cc.KeyValueList.Key)
-		if ck == "" {
-			continue
-		}
-		valType := ""
-		var val interface{}
-		if cc.KeyValueList.Value == nil {
-			continue
-		}
-		if cc.KeyValueList.Value.One != nil {
-			if cc.KeyValueList.Value.One.OneString != nil {
-				x := []string{StringValue(cc.KeyValueList.Value.One.OneString)}
-				val = x
-				valType = "string"
-			}
-			if cc.KeyValueList.Value.One.OneNumber != nil {
-				x := []int64{Int64Value(cc.KeyValueList.Value.One.OneNumber)}
-				val = x
-				valType = "int64"
-			}
-			if cc.KeyValueList.Value.One.BoolTrue != nil {
-				x := []bool{true}
-				val = x
-				valType = "bool"
-			}
-			if cc.KeyValueList.Value.One.BoolFalse != nil {
-				x := []bool{false}
-				val = x
-				valType = "bool"
-			}
-		}
-		if cc.KeyValueList.Value.List != nil {
-			valType = ""
-			mixedTypes := false
-			sl := []string{}
-			il := []int64{}
-			bl := []bool{}
-			for _, v := range cc.KeyValueList.Value.List {
-				ctype := ""
-				if v.OneString != nil {
-					sl = append(sl, StringValue(v.OneString))
-					ctype = "string"
-				}
-				if v.OneNumber != nil {
-					il = append(il, Int64Value(v.OneNumber))
-					ctype = "int64"
-				}
-				if v.BoolTrue != nil {
-					bl = append(bl, true)
-					ctype = "bool"
-				}
-				if v.BoolFalse != nil {
-					bl = append(bl, false)
-					ctype = "bool"
-				}
-				if valType == "" {
-					valType = ctype
-				}
-				if valType != ctype {
-					mixedTypes = true
-					break
-				}
-			}
-			if mixedTypes {
+		var values []any
+		var keys []string
+		var valTypes []string
+		for _, kvList := range cc.KeyValueList {
+			ck := StringValue(kvList.Key)
+			if ck == "" {
 				continue
 			}
-			switch valType {
-			case "string":
-				val = sl
-			case "int64":
-				val = il
-			case "bool":
-				val = bl
+			valType := ""
+			var val any
+			if kvList.Value == nil {
+				continue
 			}
+			switch {
+			case kvList.Value.One != nil:
+				if kvList.Value.One.OneString != nil {
+					val = []string{StringValue(kvList.Value.One.OneString)}
+					valType = "string"
+				}
+				if kvList.Value.One.OneNumber != nil {
+					val = []int64{Int64Value(kvList.Value.One.OneNumber)}
+					valType = "int64"
+				}
+				if kvList.Value.One.BoolTrue != nil {
+					val = []bool{true}
+					valType = "bool"
+				}
+				if kvList.Value.One.BoolFalse != nil {
+					val = []bool{false}
+					valType = "bool"
+				}
+			case kvList.Value.List != nil:
+				valType = ""
+				mixedTypes := false
+				var sl []string
+				var il []int64
+				var bl []bool
+				for _, v := range kvList.Value.List {
+					ctype := ""
+					if v.OneString != nil {
+						sl = append(sl, StringValue(v.OneString))
+						ctype = "string"
+					}
+					if v.OneNumber != nil {
+						il = append(il, Int64Value(v.OneNumber))
+						ctype = "int64"
+					}
+					if v.BoolTrue != nil {
+						bl = append(bl, true)
+						ctype = "bool"
+					}
+					if v.BoolFalse != nil {
+						bl = append(bl, false)
+						ctype = "bool"
+					}
+					if valType == "" {
+						valType = ctype
+					}
+					if valType != ctype {
+						mixedTypes = true
+						break
+					}
+				}
+				if mixedTypes {
+					continue
+				}
+				switch valType {
+				case "string":
+					val = sl
+				case "int64":
+					val = il
+				case "bool":
+					val = bl
+				}
+			}
+			values = append(values, val)
+			keys = append(keys, ck)
+			valTypes = append(valTypes, valType)
 		}
 		cp := policy.Condition{
 			Operation: op,
-			Key:       ck,
-			Value:     val,
-			Type:      valType,
+			Key:       keys,
+			Value:     values,
+			Type:      valTypes,
 		}
 
 		cm = append(cm, cp)

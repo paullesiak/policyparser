@@ -1,13 +1,18 @@
 module github.com/paullesiak/policyparser
 
-go 1.20
+go 1.21
 
-require (
-	github.com/alecthomas/participle/v2 v2.0.0
-	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/viper v1.16.0
-	github.com/stretchr/testify v1.8.4
-)
+// Parsing libraries
+require github.com/alecthomas/participle/v2 v2.1.1
+
+// Logging libraries
+require github.com/sirupsen/logrus v1.9.3
+
+// Configuration libraries
+require github.com/spf13/viper v1.16.0
+
+// Testing libraries
+require github.com/stretchr/testify v1.8.4
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
