@@ -56,9 +56,10 @@ type AwsPolicy struct {
 }
 
 type Block struct {
-	Version   *string      `(?!( "\"Version\"" ":" @String (",")? ))?`
+	VersionA  *string      `( "\"Version\"" ":" @String (",")? )?`
 	Id        *string      `( "\"Id\"" ":" @String (",")? )?`
 	Statement []*Statement `( "\"Statement\"" ":" "[" "{" @@ "}" ( ( "," "{" @@  "}" )* )? "]" (",")? )?`
+	VersionB  *string      `( "\"Version\"" ":" @String (",")? )?`
 }
 
 type BlockContents struct {

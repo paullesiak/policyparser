@@ -122,7 +122,12 @@ func (a *AwsParser) constructPolicy(ast *AwsPolicy) {
 	a.policies = []*policy.Policy{}
 
 	id := StringValue(ast.Block.Id)
-	version := StringValue(ast.Block.Version)
+	var version string
+	if ast.Block.VersionA != nil {
+		version = StringValue(ast.Block.VersionA)
+	} else if ast.Block.VersionB != nil {
+		version = StringValue(ast.Block.VersionB)
+	}
 
 	for index, statement := range ast.Block.Statement {
 		pol := &policy.Policy{
