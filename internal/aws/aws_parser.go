@@ -63,7 +63,7 @@ func (a *AwsParser) Parse() error {
 	}
 	opts := []participle.ParseOption{participle.AllowTrailing(true)}
 	if a.Trace {
-		opts = append(opts, participle.Trace(os.Stdout))
+		opts = append(opts /*participle.Trace(os.Stdout)*/)
 	}
 	ast, err := parser.ParseString("", a.policyText, opts...)
 

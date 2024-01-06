@@ -9,7 +9,61 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAwsParse(t *testing.T) {
+	defer log.SetLevel(log.GetLevel())
+	log.SetLevel(log.DebugLevel)
+
+	type testCase struct {
+		name              string
+		escaped           bool
+		policyText        string
+		verificationLogic func(t *testing.T, ast *AwsPolicy)
+	}
+	tests := []testCase{
+		{
+			name: "parse1",
+			policyText: `{
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Effect": "Deny",
+							"Action": "iam:CreateUser",
+							"Resource": "*"
+						},
+						{
+							"Effect": "Allow",
+							"Action": ["*"],
+							"Resource": "*"
+						}
+					]
+				}`,
+			escaped: false,
+			verificationLogic: func(t *testing.T, ast *AwsPolicy) {
+
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			policyText := tt.policyText
+			a, err := NewAwsPolicyParser(policyText, tt.escaped)
+			require.NoError(t, err)
+
+			err = a.Parse()
+			require.NoError(t, err)
+
+			policies, err := a.GetPolicy()
+			require.NoError(t, err)
+
+			tt.verificationLogic(t, policies)
+
+		})
+	}
+
+}
+
 func TestAwsParser_Parse(t *testing.T) {
+	defer log.SetLevel(log.GetLevel())
 	log.SetLevel(log.DebugLevel)
 
 	policyText := `{
