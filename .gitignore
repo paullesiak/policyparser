@@ -2,4 +2,3 @@ bin/*
 *.yaml
 *.json
 aws_escaped.txt
-go.sum
