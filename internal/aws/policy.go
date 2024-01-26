@@ -1,9 +1,5 @@
 package aws
 
-import (
-	log "github.com/sirupsen/logrus"
-)
-
 /*
 	Policy Grammar for AWS: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_grammar.html
 
@@ -79,17 +75,21 @@ type BlockProperty struct {
 }
 
 type Block struct {
-	Properties []*BlockProperty `@@ (("," @@)*)?`
+	Properties  []*BlockProperty `@@ (("," @@)*)?`
+	propertyMap map[string]*BlockProperty
 }
 
-func (b Block) GetProperty(key string) *BlockProperty {
+func (b *Block) populatePropertyMap() {
+	b.propertyMap = make(map[string]*BlockProperty)
 	for _, p := range b.Properties {
-		if p.Key == key {
-			log.Infof("key: %s, value: %s", p.Key, p.Value)
-			return p
-		}
+		b.propertyMap[p.Key] = p
 	}
-	return nil
+}
+func (b *Block) GetProperty(key string) *BlockProperty {
+	if b.propertyMap == nil {
+		b.populatePropertyMap()
+	}
+	return b.propertyMap[key]
 }
 
 type Statement struct {

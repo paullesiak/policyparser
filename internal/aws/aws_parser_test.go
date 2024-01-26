@@ -237,12 +237,11 @@ func TestAwsParse(t *testing.T) {
 	}
 }
 
-/*
-	func TestAwsParser_Parse(t *testing.T) {
-		defer log.SetLevel(log.GetLevel())
-		log.SetLevel(log.DebugLevel)
+func TestAwsParser_Parse(t *testing.T) {
+	defer log.SetLevel(log.GetLevel())
+	log.SetLevel(log.DebugLevel)
 
-		policyText := `{
+	policyText := `{
 	  "Version": "2012-10-17",
 	  "Statement": [
 	    {
@@ -258,45 +257,45 @@ func TestAwsParse(t *testing.T) {
 	  ]
 	}`
 
-		a, err := NewAwsPolicyParser(policyText, false)
-		require.NoError(t, err)
+	a, err := NewAwsPolicyParser(policyText, false)
+	require.NoError(t, err)
 
-		err = a.Parse()
-		require.NoError(t, err)
+	err = a.Parse()
+	require.NoError(t, err)
 
-		policies, err := a.GetPolicy()
-		require.NoError(t, err)
+	policies, err := a.GetPolicy()
+	require.NoError(t, err)
 
-		for index, pol := range policies {
-			log.Infof("pol #%d: %+v", index, pol)
-		}
-
-		require.Len(t, policies, 2)
-		require.False(t, policies[0].Allowed)
-		require.Len(t, policies[0].Subjects, 0)
-		require.Len(t, policies[0].NotSubjects, 0)
-		require.Len(t, policies[0].NotActions, 0)
-		require.Len(t, policies[0].NotResources, 0)
-		require.Len(t, policies[0].Actions, 1)
-		require.EqualValues(t, "iam:CreateUser", policies[0].Actions[0])
-		require.Len(t, policies[0].Resources, 1)
-		require.EqualValues(t, "<.*>", policies[0].Resources[0])
-
-		require.True(t, policies[1].Allowed)
-		require.Len(t, policies[1].Subjects, 0)
-		require.Len(t, policies[1].NotSubjects, 0)
-		require.Len(t, policies[1].NotActions, 0)
-		require.Len(t, policies[1].NotResources, 0)
-		require.Len(t, policies[1].Actions, 1)
-		require.EqualValues(t, "<.*>", policies[1].Actions[0])
-		require.Len(t, policies[1].Resources, 1)
-		require.EqualValues(t, "<.*>", policies[1].Resources[0])
+	for index, pol := range policies {
+		log.Infof("pol #%d: %+v", index, pol)
 	}
 
-	func TestAwsParser_Parse2(t *testing.T) {
-		log.SetLevel(log.DebugLevel)
+	require.Len(t, policies, 2)
+	require.False(t, policies[0].Allowed)
+	require.Len(t, policies[0].Subjects, 0)
+	require.Len(t, policies[0].NotSubjects, 0)
+	require.Len(t, policies[0].NotActions, 0)
+	require.Len(t, policies[0].NotResources, 0)
+	require.Len(t, policies[0].Actions, 1)
+	require.EqualValues(t, "iam:CreateUser", policies[0].Actions[0])
+	require.Len(t, policies[0].Resources, 1)
+	require.EqualValues(t, "<.*>", policies[0].Resources[0])
 
-		policyText := `{
+	require.True(t, policies[1].Allowed)
+	require.Len(t, policies[1].Subjects, 0)
+	require.Len(t, policies[1].NotSubjects, 0)
+	require.Len(t, policies[1].NotActions, 0)
+	require.Len(t, policies[1].NotResources, 0)
+	require.Len(t, policies[1].Actions, 1)
+	require.EqualValues(t, "<.*>", policies[1].Actions[0])
+	require.Len(t, policies[1].Resources, 1)
+	require.EqualValues(t, "<.*>", policies[1].Resources[0])
+}
+
+func TestAwsParser_Parse2(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	policyText := `{
 	  "Version": "2012-10-17",
 	  "Statement": [
 	    {
@@ -307,36 +306,36 @@ func TestAwsParse(t *testing.T) {
 	  ]
 	}`
 
-		a, err := NewAwsPolicyParser(policyText, false)
-		require.NoError(t, err)
+	a, err := NewAwsPolicyParser(policyText, false)
+	require.NoError(t, err)
 
-		err = a.Parse()
-		require.NoError(t, err)
+	err = a.Parse()
+	require.NoError(t, err)
 
-		policies, err := a.GetPolicy()
-		require.NoError(t, err)
+	policies, err := a.GetPolicy()
+	require.NoError(t, err)
 
-		for index, pol := range policies {
-			log.Infof("pol #%d: %+v", index, pol)
-		}
-
-		require.Len(t, policies, 1)
-		require.True(t, policies[0].Allowed)
-		require.Len(t, policies[0].Subjects, 0)
-		require.Len(t, policies[0].NotSubjects, 0)
-		require.Len(t, policies[0].NotActions, 0)
-		require.Len(t, policies[0].NotResources, 0)
-		require.Len(t, policies[0].Actions, 2)
-		require.EqualValues(t, "iam:CreateUser", policies[0].Actions[0])
-		require.EqualValues(t, "iam:RemoveUser", policies[0].Actions[1])
-		require.Len(t, policies[0].Resources, 1)
-		require.EqualValues(t, "<.*>", policies[0].Resources[0])
+	for index, pol := range policies {
+		log.Infof("pol #%d: %+v", index, pol)
 	}
 
-	func TestAwsParser_Parse3(t *testing.T) {
-		log.SetLevel(log.DebugLevel)
+	require.Len(t, policies, 1)
+	require.True(t, policies[0].Allowed)
+	require.Len(t, policies[0].Subjects, 0)
+	require.Len(t, policies[0].NotSubjects, 0)
+	require.Len(t, policies[0].NotActions, 0)
+	require.Len(t, policies[0].NotResources, 0)
+	require.Len(t, policies[0].Actions, 2)
+	require.EqualValues(t, "iam:CreateUser", policies[0].Actions[0])
+	require.EqualValues(t, "iam:RemoveUser", policies[0].Actions[1])
+	require.Len(t, policies[0].Resources, 1)
+	require.EqualValues(t, "<.*>", policies[0].Resources[0])
+}
 
-		policyText := `
+func TestAwsParser_Parse3(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	policyText := `
 
 	{
 	  "Version": "2012-10-17",
@@ -364,49 +363,49 @@ func TestAwsParse(t *testing.T) {
 	  ]
 	}`
 
-		a, err := NewAwsPolicyParser(policyText, false)
-		require.NoError(t, err)
+	a, err := NewAwsPolicyParser(policyText, false)
+	require.NoError(t, err)
 
-		err = a.Parse()
-		require.NoError(t, err)
+	err = a.Parse()
+	require.NoError(t, err)
 
-		policies, err := a.GetPolicy()
-		require.NoError(t, err)
+	policies, err := a.GetPolicy()
+	require.NoError(t, err)
 
-		for index, pol := range policies {
-			log.Infof("pol #%d: %+v", index, pol)
-		}
-
-		require.Len(t, policies, 1)
-		require.True(t, policies[0].Allowed)
-		require.Len(t, policies[0].Subjects, 0)
-		require.Len(t, policies[0].NotSubjects, 0)
-		require.Len(t, policies[0].NotActions, 0)
-		require.Len(t, policies[0].NotResources, 0)
-		require.Len(t, policies[0].Actions, 6)
-		require.EqualValues(t, "iam:AttachRolePolicy", policies[0].Actions[0])
-		require.EqualValues(t, "iam:CreateRole", policies[0].Actions[1])
-		require.EqualValues(t, "iam:PutRolePolicy", policies[0].Actions[2])
-		require.EqualValues(t, "iam:UpdateRole", policies[0].Actions[3])
-		require.EqualValues(t, "iam:UpdateRoleDescription", policies[0].Actions[4])
-		require.EqualValues(t, "iam:UpdateAssumeRolePolicy", policies[0].Actions[5])
-		require.Len(t, policies[0].Resources, 1)
-		require.EqualValues(t, "arn:aws:iam::<.*>:role/aws-reserved/sso.amazonaws.com/<.*>", policies[0].Resources[0])
-
-		require.Len(t, policies[0].Condition, 1)
-
-		require.EqualValues(t, "StringNotEquals", policies[0].Condition[0].Operation)
-		require.EqualValues(t, "aws:PrincipalOrgMasterAccountId", policies[0].Condition[0].Key[0])
-		require.Len(t, policies[0].Condition[0].Value, 1)
-		require.EqualValues(t, "string", policies[0].Condition[0].Type[0])
-		vs := policies[0].Condition[0].Value[0].([]string)
-		require.EqualValues(t, "${aws:PrincipalAccount}", vs[0])
+	for index, pol := range policies {
+		log.Infof("pol #%d: %+v", index, pol)
 	}
 
-	func TestAwsParser_Parse4(t *testing.T) {
-		log.SetLevel(log.DebugLevel)
+	require.Len(t, policies, 1)
+	require.True(t, policies[0].Allowed)
+	require.Len(t, policies[0].Subjects, 0)
+	require.Len(t, policies[0].NotSubjects, 0)
+	require.Len(t, policies[0].NotActions, 0)
+	require.Len(t, policies[0].NotResources, 0)
+	require.Len(t, policies[0].Actions, 6)
+	require.EqualValues(t, "iam:AttachRolePolicy", policies[0].Actions[0])
+	require.EqualValues(t, "iam:CreateRole", policies[0].Actions[1])
+	require.EqualValues(t, "iam:PutRolePolicy", policies[0].Actions[2])
+	require.EqualValues(t, "iam:UpdateRole", policies[0].Actions[3])
+	require.EqualValues(t, "iam:UpdateRoleDescription", policies[0].Actions[4])
+	require.EqualValues(t, "iam:UpdateAssumeRolePolicy", policies[0].Actions[5])
+	require.Len(t, policies[0].Resources, 1)
+	require.EqualValues(t, "arn:aws:iam::<.*>:role/aws-reserved/sso.amazonaws.com/<.*>", policies[0].Resources[0])
 
-		policyText := `
+	require.Len(t, policies[0].Condition, 1)
+
+	require.EqualValues(t, "StringNotEquals", policies[0].Condition[0].Operation)
+	require.EqualValues(t, "aws:PrincipalOrgMasterAccountId", policies[0].Condition[0].Key[0])
+	require.Len(t, policies[0].Condition[0].Value, 1)
+	require.EqualValues(t, "string", policies[0].Condition[0].Type[0])
+	vs := policies[0].Condition[0].Value[0].([]string)
+	require.EqualValues(t, "${aws:PrincipalAccount}", vs[0])
+}
+
+func TestAwsParser_Parse4(t *testing.T) {
+	log.SetLevel(log.DebugLevel)
+
+	policyText := `
 
 	{
 	  "Version": "2012-10-17",
@@ -429,47 +428,47 @@ func TestAwsParse(t *testing.T) {
 	  ]
 	}`
 
-		a, err := NewAwsPolicyParser(policyText, false)
-		require.NoError(t, err)
+	a, err := NewAwsPolicyParser(policyText, false)
+	require.NoError(t, err)
 
-		err = a.Parse()
-		require.NoError(t, err)
+	err = a.Parse()
+	require.NoError(t, err)
 
-		policies, err := a.GetPolicy()
-		require.NoError(t, err)
+	policies, err := a.GetPolicy()
+	require.NoError(t, err)
 
-		for index, pol := range policies {
-			log.Infof("pol #%d: %+v", index, pol)
-		}
-
-		require.Len(t, policies, 1)
-		require.True(t, policies[0].Allowed)
-		require.Len(t, policies[0].Subjects, 1)
-		require.EqualValues(t, "cognito-identity.amazonaws.com", policies[0].Subjects[0])
-		require.Len(t, policies[0].NotSubjects, 0)
-		require.Len(t, policies[0].NotActions, 0)
-		require.Len(t, policies[0].Resources, 0)
-		require.Len(t, policies[0].NotResources, 0)
-		require.Len(t, policies[0].Actions, 1)
-		require.EqualValues(t, "sts:AssumeRoleWithWebIdentity", policies[0].Actions[0])
-
-		require.Len(t, policies[0].Condition, 2)
-
-		require.EqualValues(t, "StringEquals", policies[0].Condition[0].Operation)
-		require.EqualValues(t, "cognito-identity.amazonaws.com:aud", policies[0].Condition[0].Key[0])
-		require.Len(t, policies[0].Condition[0].Value, 1)
-		require.EqualValues(t, "string", policies[0].Condition[0].Type[0])
-		vs := policies[0].Condition[0].Value[0].([]string)
-		require.EqualValues(t, "us-west-2:7e9abc23-035e-49e7-a54a-2f850581930c", vs[0])
-
-		require.EqualValues(t, "ForAnyValue:StringLike", policies[0].Condition[1].Operation)
-		require.EqualValues(t, "cognito-identity.amazonaws.com:amr", policies[0].Condition[1].Key[0])
-		require.Len(t, policies[0].Condition[1].Value, 1)
-		require.EqualValues(t, "string", policies[0].Condition[1].Type[0])
-		vs = policies[0].Condition[1].Value[0].([]string)
-		require.EqualValues(t, "authenticated", vs[0])
+	for index, pol := range policies {
+		log.Infof("pol #%d: %+v", index, pol)
 	}
-*/
+
+	require.Len(t, policies, 1)
+	require.True(t, policies[0].Allowed)
+	require.Len(t, policies[0].Subjects, 1)
+	require.EqualValues(t, "cognito-identity.amazonaws.com", policies[0].Subjects[0])
+	require.Len(t, policies[0].NotSubjects, 0)
+	require.Len(t, policies[0].NotActions, 0)
+	require.Len(t, policies[0].Resources, 0)
+	require.Len(t, policies[0].NotResources, 0)
+	require.Len(t, policies[0].Actions, 1)
+	require.EqualValues(t, "sts:AssumeRoleWithWebIdentity", policies[0].Actions[0])
+
+	require.Len(t, policies[0].Condition, 2)
+
+	require.EqualValues(t, "StringEquals", policies[0].Condition[0].Operation)
+	require.EqualValues(t, "cognito-identity.amazonaws.com:aud", policies[0].Condition[0].Key[0])
+	require.Len(t, policies[0].Condition[0].Value, 1)
+	require.EqualValues(t, "string", policies[0].Condition[0].Type[0])
+	vs := policies[0].Condition[0].Value[0].([]string)
+	require.EqualValues(t, "us-west-2:7e9abc23-035e-49e7-a54a-2f850581930c", vs[0])
+
+	require.EqualValues(t, "ForAnyValue:StringLike", policies[0].Condition[1].Operation)
+	require.EqualValues(t, "cognito-identity.amazonaws.com:amr", policies[0].Condition[1].Key[0])
+	require.Len(t, policies[0].Condition[1].Value, 1)
+	require.EqualValues(t, "string", policies[0].Condition[1].Type[0])
+	vs = policies[0].Condition[1].Value[0].([]string)
+	require.EqualValues(t, "authenticated", vs[0])
+}
+
 func TestAwsParser_Parse5(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
