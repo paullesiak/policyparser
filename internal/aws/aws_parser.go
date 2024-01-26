@@ -57,19 +57,24 @@ func NewAwsPolicyParser(policyText string, escaped bool) (*AwsParser, error) {
 func (a *AwsParser) Parse() error {
 	parser, err := participle.Build[AwsPolicy](
 		participle.UseLookahead(2),
+		participle.Union[BlockValue](BlockStatement{}, BlockString{}),
+		participle.Unquote(),
 	)
 	if err != nil {
 		return fmt.Errorf("error building parser: %w", err)
 	}
 	opts := []participle.ParseOption{participle.AllowTrailing(true)}
 	if a.Trace {
-		opts = append(opts /*participle.Trace(os.Stdout)*/)
+		opts = append(opts, participle.Trace(os.Stdout))
 	}
 	ast, err := parser.ParseString("", a.policyText, opts...)
 
 	if err == nil {
 		a.parsed = true
-		a.constructPolicy(ast)
+		if err := a.constructPolicy(ast); err != nil {
+			err = fmt.Errorf("error constructing policy: %w", err)
+			a.error = err
+		}
 	} else {
 		var p *participle.UnexpectedTokenError
 		if errors.As(err, &p) {
@@ -114,62 +119,68 @@ func (a *AwsParser) WriteJson(filename string) error {
 	return fmt.Errorf("no policies parsed yet")
 }
 
-func (a *AwsParser) constructPolicy(ast *AwsPolicy) {
+func (a *AwsParser) constructPolicy(ast *AwsPolicy) error {
 	if a.awsPolicy == nil {
-		return
+		return nil
 	}
 
 	a.policies = []*policy.Policy{}
 
-	id := StringValue(ast.Block.Id)
-	var version string
-	if ast.Block.VersionA != nil {
-		version = StringValue(ast.Block.VersionA)
-	} else if ast.Block.VersionB != nil {
-		version = StringValue(ast.Block.VersionB)
+	var id, version string
+	if x := ast.Block.GetProperty("Id"); x != nil {
+		id = x.Value.(BlockString).String
+	}
+	if x := ast.Block.GetProperty("Version"); x != nil {
+		version = x.Value.(BlockString).String
 	}
 
-	for index, statement := range ast.Block.Statement {
-		pol := &policy.Policy{
-			Id:      fmt.Sprintf("%s:%d", id, index),
-			Version: version,
-		}
+	if x := ast.Block.GetProperty("Statement"); x != nil {
+		statements := x.Value.(BlockStatement).Statement
+		for index, statement := range statements {
+			pol := &policy.Policy{
+				Id:      fmt.Sprintf("%s:%d", id, index),
+				Version: version,
+			}
 
-		for _, element := range statement.Elements {
-			if element.Effect != nil {
-				effect := StringValue(element.Effect)
-				switch strings.ToLower(effect) {
-				case "allow":
-					pol.Allowed = true
-				default:
-					pol.Allowed = false
+			for _, element := range statement.Elements {
+				if element.Effect != nil {
+					effect := StringValue(element.Effect)
+					switch strings.ToLower(effect) {
+					case "allow":
+						pol.Allowed = true
+					default:
+						pol.Allowed = false
+					}
+				}
+				if element.Action != nil {
+					pol.Actions = a.getAnyOrList(element.Action)
+				}
+				if element.NotAction != nil {
+					pol.NotActions = a.getAnyOrList(element.NotAction)
+				}
+				if element.Resource != nil {
+					pol.Resources = a.getAnyOrList(element.Resource)
+				}
+				if element.NotResource != nil {
+					pol.NotResources = a.getAnyOrList(element.NotResource)
+				}
+				if element.Principal != nil {
+					pol.Subjects = a.getSubjects(element.Principal)
+				}
+				if element.NotPrincipal != nil {
+					pol.NotSubjects = a.getSubjects(element.NotPrincipal)
+				}
+				if element.Condition != nil {
+					pol.Condition = a.getCondition(element.Condition)
 				}
 			}
-			if element.Action != nil {
-				pol.Actions = a.getAnyOrList(element.Action)
-			}
-			if element.NotAction != nil {
-				pol.NotActions = a.getAnyOrList(element.NotAction)
-			}
-			if element.Resource != nil {
-				pol.Resources = a.getAnyOrList(element.Resource)
-			}
-			if element.NotResource != nil {
-				pol.NotResources = a.getAnyOrList(element.NotResource)
-			}
-			if element.Principal != nil {
-				pol.Subjects = a.getSubjects(element.Principal)
-			}
-			if element.NotPrincipal != nil {
-				pol.NotSubjects = a.getSubjects(element.NotPrincipal)
-			}
-			if element.Condition != nil {
-				pol.Condition = a.getCondition(element.Condition)
-			}
-		}
 
-		a.policies = append(a.policies, pol)
+			a.policies = append(a.policies, pol)
+		}
+	} else {
+		return fmt.Errorf("no statements found in policy")
 	}
+	return nil
 }
 
 func (a *AwsParser) getAnyOrList(l *AnyOrList) []string {

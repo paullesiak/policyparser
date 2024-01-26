@@ -204,13 +204,32 @@ func TestAwsParse(t *testing.T) {
 				require.EqualValues(t, "authenticated", vs[0])
 			},
 		},
+		{
+			name:    "parse5",
+			escaped: false,
+			policyText: `{
+						  "Statement": [
+							{
+							  "Effect": "Allow"
+							}
+						  ],
+						  "Version": "2012-10-17"
+						}`,
+			verificationLogic: func(t *testing.T, a *AwsParser) {
+				policies, err := a.GetPolicy()
+				require.NoError(t, err)
+				require.Len(t, policies, 1)
+				require.True(t, policies[0].Allowed)
+				require.Equal(t, policies[0].Version, "2012-10-17")
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			policyText := tt.policyText
 			a, err := NewAwsPolicyParser(policyText, tt.escaped)
 			require.NoError(t, err)
+			a.Trace = true
 			err = a.Parse()
 			require.NoError(t, err)
 			tt.verificationLogic(t, a)
