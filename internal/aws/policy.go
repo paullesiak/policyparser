@@ -1,5 +1,9 @@
 package aws
 
+import (
+	log "github.com/sirupsen/logrus"
+)
+
 /*
 	Policy Grammar for AWS: https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_grammar.html
 
@@ -55,39 +59,53 @@ type AwsPolicy struct {
 	Block *Block `"{" @@ "}"`
 }
 
+type BlockValue interface{ value() }
+
+type BlockString struct {
+	String string `@String`
+}
+
+func (BlockString) value() {}
+
+type BlockStatement struct {
+	Statement []*Statement `"[" "{" @@ "}" ( ( "," "{" @@ "}" )* )? "]"`
+}
+
+func (BlockStatement) value() {}
+
+type BlockProperty struct {
+	Key   string     `@String ":"`
+	Value BlockValue `@@`
+}
+
 type Block struct {
-	VersionA  *string      `( "\"Version\"" ":" @String (",")? )?`
-	Id        *string      `( "\"Id\"" ":" @String (",")? )?`
-	Statement []*Statement `( "\"Statement\"" ":" "[" "{" @@ "}" ( ( "," "{" @@  "}" )* )? "]" (",")? )?`
-	VersionB  *string      `( "\"Version\"" ":" @String (",")? )?`
+	Properties []*BlockProperty `@@ (("," @@)*)?`
 }
 
-type BlockContents struct {
-	Version   *string      `( "\"Version\"" ":" @String (",")? )?`
-	Id        *string      `( "\"Id\"" ":" @String (",")? )?`
-	Statement []*Statement `( "\"Statement\"" ":" "[" "{" @@ "}" ( ( "," "{" @@  "}" )* )? "]" (",")? )?`
+func (b Block) GetProperty(key string) *BlockProperty {
+	for _, p := range b.Properties {
+		if p.Key == key {
+			log.Infof("key: %s, value: %s", p.Key, p.Value)
+			return p
+		}
+	}
+	return nil
 }
-
-// type BlockOld struct {
-// 	Version   *string      `( "\"Version\"" ":" @String (",")? )?`
-// 	Id        *string      `( "\"Id\"" ":" @String (",")? )?`
-// 	Statement []*Statement `"\"Statement\"" ":" "[" "{" @@ "}" ( ( "," "{" @@  "}" )* )? "]"`
-// }
 
 type Statement struct {
-	Elements []*Elements `@@ ( ("," @@)* )?`
+	Elements []*Elements `@@ ("," @@)*`
 }
 
 type Elements struct {
-	Sid          *string    `"\"Sid\"" ":" @String`
-	Effect       *string    `| "\"Effect\"" ":" @String`
-	Principal    *Principal `| "\"Principal\"" ":" @@`
-	NotPrincipal *Principal `| "\"NotPrincipal\"" ":" @@`
-	Action       *AnyOrList `| "\"Action\"" ":" @@`
-	NotAction    *AnyOrList `| "\"NotAction\"" ":" @@`
-	Resource     *AnyOrList `| "\"Resource\"" ":" @@`
-	NotResource  *AnyOrList `| "\"NotResource\"" ":" @@`
-	Condition    *Condition `| "\"Condition\"" ":" @@`
+	Sid          *string    `"Sid" ":" @String`
+	Effect       *string    `| "Effect" ":" @String`
+	Principal    *Principal `| "Principal" ":" @@`
+	NotPrincipal *Principal `| "NotPrincipal" ":" @@`
+	Action       *AnyOrList `| "Action" ":" @@`
+	NotAction    *AnyOrList `| "NotAction" ":" @@`
+	Resource     *AnyOrList `| "Resource" ":" @@`
+	NotResource  *AnyOrList `| "NotResource" ":" @@`
+	Condition    *Condition `| "Condition" ":" @@`
 }
 
 type AnyOrList struct {
@@ -96,20 +114,20 @@ type AnyOrList struct {
 }
 
 type Item struct {
-	Any bool    `@("\"*\"")`
+	Any bool    `@("*")`
 	One *string `| @String`
 }
 
 type Principal struct {
-	Any  bool             `@("\"*\"")`
+	Any  bool             `@("*")`
 	List []*PrincipalList `| "{" @@ ( ("," @@ )* )? "}"`
 }
 
 type PrincipalList struct {
-	Aws       *AnyOrList `"\"AWS\"" ":" @@`
-	Federated *AnyOrList `| "\"Federated\"" ":" @@`
-	Canonical *AnyOrList `| "\"CanonicalUser\"" ":" @@`
-	Service   *AnyOrList `| "\"Service\"" ":" @@`
+	Aws       *AnyOrList `"AWS" ":" @@`
+	Federated *AnyOrList `| "Federated" ":" @@`
+	Canonical *AnyOrList `| "CanonicalUser" ":" @@`
+	Service   *AnyOrList `| "Service" ":" @@`
 }
 
 type Condition struct {
