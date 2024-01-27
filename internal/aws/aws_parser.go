@@ -56,7 +56,7 @@ func NewAwsPolicyParser(policyText string, escaped bool) (*AwsParser, error) {
 
 func (a *AwsParser) Parse() error {
 	parser, err := participle.Build[AwsPolicy](
-		participle.UseLookahead(2),
+		participle.UseLookahead(1),
 		participle.Union[BlockValue](BlockStatement{}, BlockString{}),
 		participle.Unquote(),
 	)
@@ -135,7 +135,11 @@ func (a *AwsParser) constructPolicy(ast *AwsPolicy) error {
 	}
 
 	if x := ast.Block.GetProperty("Statement"); x != nil {
-		statements := x.Value.(BlockStatement).Statement
+		blockStatement, ok := x.Value.(BlockStatement)
+		if !ok {
+			return fmt.Errorf("statement is not a block statement")
+		}
+		statements := blockStatement.Statement
 		for index, statement := range statements {
 			pol := &policy.Policy{
 				Id:      fmt.Sprintf("%s:%d", id, index),
@@ -174,7 +178,6 @@ func (a *AwsParser) constructPolicy(ast *AwsPolicy) error {
 					pol.Condition = a.getCondition(element.Condition)
 				}
 			}
-
 			a.policies = append(a.policies, pol)
 		}
 	} else {
