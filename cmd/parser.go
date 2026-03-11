@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -44,7 +44,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("Error opening file: %s", err.Error()))
 	}
-	policyText, err := ioutil.ReadAll(r)
+	policyText, err := io.ReadAll(r)
 	if err != nil {
 		panic(fmt.Errorf("Error reading file: %s", err.Error()))
 	}

@@ -7,12 +7,30 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/alecthomas/participle/v2"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/paullesiak/policyparser/pkg/policy"
 )
+
+var (
+	cachedParser     *participle.Parser[AwsPolicy]
+	cachedParserOnce sync.Once
+	cachedParserErr  error
+)
+
+func getParser() (*participle.Parser[AwsPolicy], error) {
+	cachedParserOnce.Do(func() {
+		cachedParser, cachedParserErr = participle.Build[AwsPolicy](
+			participle.UseLookahead(1),
+			participle.Union[BlockValue](BlockStatement{}, BlockString{}),
+			participle.Unquote(),
+		)
+	})
+	return cachedParser, cachedParserErr
+}
 
 type AwsParser struct {
 	policyText string
@@ -55,11 +73,7 @@ func NewAwsPolicyParser(policyText string, escaped bool) (*AwsParser, error) {
 }
 
 func (a *AwsParser) Parse() error {
-	parser, err := participle.Build[AwsPolicy](
-		participle.UseLookahead(1),
-		participle.Union[BlockValue](BlockStatement{}, BlockString{}),
-		participle.Unquote(),
-	)
+	parser, err := getParser()
 	if err != nil {
 		return fmt.Errorf("error building parser: %w", err)
 	}
@@ -70,17 +84,18 @@ func (a *AwsParser) Parse() error {
 	ast, err := parser.ParseString("", a.policyText, opts...)
 
 	if err == nil {
-		a.parsed = true
-		if err := a.constructPolicy(ast); err != nil {
+		if err = a.constructPolicy(ast); err != nil {
 			err = fmt.Errorf("error constructing policy: %w", err)
 			a.error = err
+		} else {
+			a.parsed = true
 		}
 	} else {
 		var p *participle.UnexpectedTokenError
 		if errors.As(err, &p) {
 			log.Errorf("Error parsing policy: %s : %s", p.Error(), p.Unexpected.Pos.String())
-			a.error = err
 		}
+		a.error = err
 	}
 	return err
 }
@@ -120,8 +135,8 @@ func (a *AwsParser) WriteJson(filename string) error {
 }
 
 func (a *AwsParser) constructPolicy(ast *AwsPolicy) error {
-	if a.awsPolicy == nil {
-		return nil
+	if ast == nil {
+		return fmt.Errorf("parsed policy AST is nil")
 	}
 
 	a.policies = []*policy.Policy{}
@@ -147,6 +162,9 @@ func (a *AwsParser) constructPolicy(ast *AwsPolicy) error {
 			}
 
 			for _, element := range statement.Elements {
+				if element.Sid != nil {
+					pol.Id = StringValue(element.Sid)
+				}
 				if element.Effect != nil {
 					effect := StringValue(element.Effect)
 					switch strings.ToLower(effect) {
