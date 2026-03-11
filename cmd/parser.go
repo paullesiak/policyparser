@@ -5,80 +5,102 @@ import (
 	"io"
 	"os"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/paullesiak/policyparser/internal/logger"
 	"github.com/spf13/viper"
 
 	"github.com/paullesiak/policyparser/pkg/parser"
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatalf("%v", err)
+	}
+}
+
+func run() error {
 	log.SetLevel(log.DebugLevel)
+	configureDefaults()
 
-	log.Debugf("Hello, World!")
-
-	viper.SetDefault("cloud", "aws")
-	viper.SetDefault("policyFile", "awspolicy.json")
-	viper.SetDefault("urlEscaped", true)
-	viper.SetDefault("outputFile", "parsed.json")
-
-	viper.SetConfigName("config") // name of config file (without extension)
-	viper.SetConfigType("yaml")   // REQUIRED if the config file does not have the extension in the name
-	viper.AddConfigPath(".")      // optionally look for config in the working directory
-
-	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found; ignore error if desired
-			panic(fmt.Errorf("config file not found: %s \n", err.Error()))
-		} else {
-			// Config file was found but another error was produced
-			panic(fmt.Errorf("Fatal error config file: %s \n", err.Error()))
-		}
+	if err := readConfig(); err != nil {
+		return err
 	}
 
-	log.Debugf("Parsing %s file for %s cloud",
+	log.Debugf(
+		"Parsing %s file for %s cloud",
 		viper.GetString("policyFile"),
 		viper.GetString("cloud"))
 
-	r, err := os.Open(viper.GetString("policyFile"))
+	policyText, err := readPolicyText(viper.GetString("policyFile"))
 	if err != nil {
-		panic(fmt.Errorf("Error opening file: %s", err.Error()))
+		return err
 	}
-	policyText, err := io.ReadAll(r)
-	if err != nil {
-		panic(fmt.Errorf("Error reading file: %s", err.Error()))
-	}
-
 	log.Debugf("%s", policyText)
 
 	p, err := parser.NewParser(viper.GetString("cloud"), string(policyText), viper.GetBool("urlEscaped"))
 	if err != nil {
-		panic(fmt.Errorf("Error instantiating parser: %s", err.Error()))
+		return err
 	}
 
-	err = p.Parse()
-	if err != nil {
-		panic(fmt.Errorf("Error parsing the policy: %s", err.Error()))
+	if err := p.Parse(); err != nil {
+		return err
 	}
 
 	policies, err := p.GetPolicy()
 	if err != nil {
-		panic(fmt.Errorf("Error writing the output file: %s", err.Error()))
+		return err
 	}
 
 	for index, pol := range policies {
 		log.Infof("pol #%d: %+v", index, pol)
 	}
 
-	j, err := p.Json()
+	jsonData, err := p.Json()
 	if err != nil {
-		panic(fmt.Errorf("Error marshaling to json: %s", err.Error()))
+		return err
 	}
-	log.Debugf("Json: \n%s", string(j))
-	err = p.WriteJson(viper.GetString("outputFile"))
-	if err != nil {
-		panic(fmt.Errorf("Error writing json to file: %s", err.Error()))
+	log.Debugf("Json: \n%s", string(jsonData))
+
+	if err := p.WriteJson(viper.GetString("outputFile")); err != nil {
+		return err
 	}
 
 	log.Debugf("Written to file: %s", viper.GetString("outputFile"))
+	return nil
+}
+
+func configureDefaults() {
+	viper.SetDefault("cloud", "aws")
+	viper.SetDefault("policyFile", "awspolicy.json")
+	viper.SetDefault("urlEscaped", true)
+	viper.SetDefault("outputFile", "parsed.json")
+
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+}
+
+func readConfig() error {
+	if err := viper.ReadInConfig(); err != nil {
+		return fmt.Errorf("read config: %w", err)
+	}
+	return nil
+}
+
+func readPolicyText(filename string) (_ []byte, err error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("open policy file %q: %w", filename, err)
+	}
+	defer func() {
+		closeErr := file.Close()
+		if err == nil && closeErr != nil {
+			err = fmt.Errorf("close policy file %q: %w", filename, closeErr)
+		}
+	}()
+
+	policyText, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("read policy file %q: %w", filename, err)
+	}
+	return policyText, nil
 }

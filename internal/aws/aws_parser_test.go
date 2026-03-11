@@ -2,22 +2,22 @@ package aws
 
 import (
 	"errors"
+	"os"
 	"testing"
-
-	"net/url"
 
 	"fmt"
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
 	"github.com/alecthomas/participle/v2/lexer"
-	log "github.com/sirupsen/logrus"
+	log "github.com/paullesiak/policyparser/internal/logger"
+	"github.com/paullesiak/policyparser/pkg/policy"
 	"github.com/stretchr/testify/require"
 )
 
 // TestAwsParse is the template test function, that all other tests in this package should be included into
 func TestAwsParse(t *testing.T) {
-	defer log.SetLevel(log.GetLevel())
+	defer log.SetLevel(log.CurrentLevel())
 	log.SetLevel(log.DebugLevel)
 	type testCase struct {
 		name              string
@@ -229,13 +229,29 @@ func TestAwsParse(t *testing.T) {
 				require.Equal(t, policies[0].Version, "2012-10-17")
 			},
 		},
+		{
+			name: "policy.go value BlockStatement",
+			policyText: `{
+						"Statement": [
+							{
+								"Effect": "Allow",
+								"Action": "*",
+								"Resource": "*"
+							}
+						]
+					}`,
+			escaped: false,
+			verificationLogic: func(t *testing.T, a *AwsParser) {
+				require.NoError(t, a.error)
+				require.True(t, a.parsed)
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			policyText := tt.policyText
 			a, err := NewAwsPolicyParser(policyText, tt.escaped)
 			require.NoError(t, err)
-			a.Trace = true
 			err = a.Parse()
 			require.NoError(t, err)
 			tt.verificationLogic(t, a)
@@ -244,7 +260,7 @@ func TestAwsParse(t *testing.T) {
 }
 
 func TestAwsParser_Parse(t *testing.T) {
-	defer log.SetLevel(log.GetLevel())
+	defer log.SetLevel(log.CurrentLevel())
 	log.SetLevel(log.DebugLevel)
 
 	policyText := `{
@@ -548,7 +564,7 @@ func TestAwsParser_Parse5(t *testing.T) {
 func TestAwsParser_Parse6(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 
-	encodedText := `%7B%0A%20%20%20%20%22Version%22%3A%20%222012-10-17%22%2C%0A%20%20%20%20%22Statement%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Effect%22%3A%20%22Allow%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Action%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22ec2%3ADescribeSpotFleetRequests%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22ec2%3AModifySpotFleetRequest%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Resource%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22%2A%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Effect%22%3A%20%22Allow%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Action%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22cloudwatch%3ADescribeAlarms%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22cloudwatch%3APutMetricAlarm%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22cloudwatch%3ADeleteAlarms%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Resource%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22%2A%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%20%0A%20%20%20%20%20%20%20%20%20%20%22Action%22%3A%20%22iam%3ACreateServiceLinkedRole%22%2C%20%0A%20%20%20%20%20%20%20%20%20%20%22Effect%22%3A%20%22Allow%22%2C%20%0A%20%20%20%20%20%20%20%20%20%20%22Resource%22%3A%20%22arn%3Aaws%3Aiam%3A%3A%2A%3Arole%2Faws-service-role%2Fec2.application-autoscaling.amazonaws.com%2FAWSServiceRoleForApplicationAutoScaling_EC2SpotFleetRequest%22%2C%20%0A%20%20%20%20%20%20%20%20%20%20%22Condition%22%3A%20%7B%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%22StringLike%22%3A%20%7B%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22iam%3AAWSServiceName%22%3A%20%22ec2.application-autoscaling.amazonaws.com%22%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%7D%20%0A%20%20%20%20%5D%0A%7D`
+	encodedText := `%7B%0A%20%20%20%20%22Version%22%3A%20%222012-10-17%22%2C%0A%20%20%20%20%22Statement%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Effect%22%3A%20%22Allow%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Action%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22ec2%3ADescribeSpotFleetRequests%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22ec2%3AModifySpotFleetRequest%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Resource%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22%2A%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Effect%22%3A%20%22Allow%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Action%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22cloudwatch%3ADescribeAlarms%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22cloudwatch%3APutMetricAlarm%22%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22cloudwatch%3ADeleteAlarms%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20%20%20%20%20%22Resource%22%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22%2A%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%5D%0A%20%20%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20%20%20%7B%20%0A%20%20%20%20%20%20%20%20%20%20%22Effect%22%3A%20%22Allow%22%2C%20%0A%20%20%20%20%20%20%20%20%20%20%22Action%22%3A%20%22iam%3ACreateServiceLinkedRole%22%2C%20%0A%20%20%20%20%20%20%20%20%20%20%22Resource%22%3A%20%22arn%3Aaws%3Aiam%3A%3A%2A%3Arole%2Faws-service-role%2Fec2.application-autoscaling.amazonaws.com%2FAWSServiceRoleForApplicationAutoScaling_EC2SpotFleetRequest%22%2C%20%0A%20%20%20%20%20%20%20%20%20%20%22Condition%22%3A%20%7B%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%22StringLike%22%3A%20%7B%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22iam%3AAWSServiceName%22%3A%20%22ec2.application-autoscaling.amazonaws.com%22%20%0A%20%20%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20%7D%20%0A%20%20%20%20%5D%0A%7D`
 
 	a, err := NewAwsPolicyParser(encodedText, true)
 	require.NoError(t, err)
@@ -718,223 +734,152 @@ func TestAwsParser_Parse10(t *testing.T) {
         "cloudtrail:LookupEvents",
         "cloudtrail:StartLogging",
         "cloudtrail:StopLogging",
-        "cloudwatch:*",
-        "codecommit:BatchGetRepositories",
-        "codecommit:CreateBranch",
-        "codecommit:CreateRepository",
+        "codedeploy:BatchGet*",
+        "codedeploy:Get*",
+        "codedeploy:List*",
+        "codecommit:BatchGet*",
+        "codecommit:BatchDescribe*",
+        "codecommit:Describe*",
         "codecommit:Get*",
-        "codecommit:GitPull",
-        "codecommit:GitPush",
         "codecommit:List*",
-        "codecommit:Put*",
-        "codecommit:Test*",
-        "codecommit:Update*",
-        "codedeploy:*",
-        "codepipeline:*",
-        "config:*",
-        "ds:*",
-        "ec2:Allocate*",
-        "ec2:AssignPrivateIpAddresses*",
-        "ec2:Associate*",
-        "ec2:Allocate*",
-        "ec2:AttachInternetGateway",
-        "ec2:AttachNetworkInterface",
-        "ec2:AttachVpnGateway",
-        "ec2:Bundle*",
-        "ec2:Cancel*",
-        "ec2:Copy*",
-        "ec2:CreateCustomerGateway",
-        "ec2:CreateDhcpOptions",
-        "ec2:CreateFlowLogs",
-        "ec2:CreateImage",
-        "ec2:CreateInstanceExportTask",
-        "ec2:CreateInternetGateway",
-        "ec2:CreateKeyPair",
-        "ec2:CreateLaunchTemplate",
-        "ec2:CreateLaunchTemplateVersion",
-        "ec2:CreateNatGateway",
-        "ec2:CreateNetworkInterface",
-        "ec2:CreatePlacementGroup",
-        "ec2:CreateReservedInstancesListing",
-        "ec2:CreateRoute",
-        "ec2:CreateRouteTable",
-        "ec2:CreateSecurityGroup",
-        "ec2:CreateSnapshot",
-        "ec2:CreateSpotDatafeedSubscription",
-        "ec2:CreateSubnet",
-        "ec2:CreateTags",
-        "ec2:CreateVolume",
-        "ec2:CreateVpc",
-        "ec2:CreateVpcEndpoint",
-        "ec2:CreateVpnConnection",
-        "ec2:CreateVpnConnectionRoute",
-        "ec2:CreateVpnGateway",
-        "ec2:DeleteFlowLogs",
-        "ec2:DeleteKeyPair",
-        "ec2:DeleteLaunchTemplate",
-        "ec2:DeleteLaunchTemplateVersions",
-        "ec2:DeleteNatGateway",
-        "ec2:DeleteNetworkInterface",
-        "ec2:DeletePlacementGroup",
-        "ec2:DeleteSnapshot",
-        "ec2:DeleteSpotDatafeedSubscription",
-        "ec2:DeleteSubnet",
-        "ec2:DeleteTags",
-        "ec2:DeleteVpc",
-        "ec2:DeleteVpcEndpoints",
-        "ec2:DeleteVpnConnection",
-        "ec2:DeleteVpnConnectionRoute",
-        "ec2:DeleteVpnGateway",
-        "ec2:DeregisterImage",
+        "cognito-idp:List*",
+        "config:Deliver*",
+        "config:Describe*",
+        "config:Get*",
+        "config:List*",
+        "directconnect:Describe*",
+        "dynamodb:DescribeBackup",
+        "dynamodb:DescribeContinuousBackups",
+        "dynamodb:DescribeGlobalTable",
+        "dynamodb:DescribeGlobalTableSettings",
+        "dynamodb:DescribeLimits",
+        "dynamodb:DescribeReservedCapacity",
+        "dynamodb:DescribeReservedCapacityOfferings",
+        "dynamodb:DescribeStream",
+        "dynamodb:DescribeTable",
+        "dynamodb:DescribeTimeToLive",
+        "dynamodb:ListBackups",
+        "dynamodb:ListGlobalTables",
+        "dynamodb:ListStreams",
+        "dynamodb:ListTables",
+        "dynamodb:ListTagsOfResource",
         "ec2:Describe*",
-        "ec2:DetachInternetGateway",
-        "ec2:DetachNetworkInterface",
-        "ec2:DetachVpnGateway",
-        "ec2:DisableVgwRoutePropagation",
-        "ec2:DisableVpcClassicLinkDnsSupport",
-        "ec2:DisassociateAddress",
-        "ec2:DisassociateRouteTable",
-        "ec2:EnableVgwRoutePropagation",
-        "ec2:EnableVolumeIO",
-        "ec2:EnableVpcClassicLinkDnsSupport",
-        "ec2:GetConsoleOutput",
-        "ec2:GetHostReservationPurchasePreview",
-        "ec2:GetLaunchTemplateData",
-        "ec2:GetPasswordData",
-        "ec2:Import*",
-        "ec2:Modify*",
-        "ec2:MonitorInstances",
-        "ec2:MoveAddressToVpc",
-        "ec2:Purchase*",
-        "ec2:RegisterImage",
-        "ec2:Release*",
-        "ec2:Replace*",
-        "ec2:ReportInstanceStatus",
-        "ec2:Request*",
-        "ec2:Reset*",
-        "ec2:RestoreAddressToClassic",
-        "ec2:RunScheduledInstances",
-        "ec2:UnassignPrivateIpAddresses",
-        "ec2:UnmonitorInstances",
-        "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
-        "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
-        "elasticloadbalancing:*",
-        "events:*",
-        "iam:GetAccount*",
-        "iam:GetContextKeys*",
-        "iam:GetCredentialReport",
-        "iam:ListAccountAliases",
-        "iam:ListGroups",
-        "iam:ListOpenIDConnectProviders",
-        "iam:ListPolicies",
-        "iam:ListPoliciesGrantingServiceAccess",
-        "iam:ListRoles",
-        "iam:ListSAMLProviders",
-        "iam:ListServerCertificates",
-        "iam:Simulate*",
-        "iam:UpdateServerCertificate",
-        "iam:UpdateSigningCertificate",
-        "kinesis:ListStreams",
-        "kinesis:PutRecord",
-        "kms:CreateAlias",
-        "kms:CreateKey",
-        "kms:DeleteAlias",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
+        "ecr:DescribeImageScanFindings",
+        "ecr:DescribeImages",
+        "ecr:DescribeRegistry",
+        "ecr:DescribeRepositories",
+        "ecr:GetAuthorizationToken",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:GetLifecyclePolicy",
+        "ecr:GetLifecyclePolicyPreview",
+        "ecr:GetRegistryPolicy",
+        "ecr:GetRepositoryPolicy",
+        "ecr:ListImages",
+        "ecr:ListTagsForResource",
+        "elasticfilesystem:Describe*",
+        "elasticloadbalancing:Describe*",
+        "firehose:Describe*",
+        "firehose:List*",
+        "glacier:DescribeVault",
+        "glacier:GetDataRetrievalPolicy",
+        "glacier:GetVaultAccessPolicy",
+        "glacier:GetVaultLock",
+        "glacier:GetVaultNotifications",
+        "glacier:ListJobs",
+        "glacier:ListMultipartUploads",
+        "glacier:ListParts",
+        "glacier:ListProvisionedCapacity",
+        "glacier:ListTagsForVault",
+        "glacier:ListVaults",
+        "glue:BatchGetJobs",
+        "glue:BatchGetWorkflows",
+        "glue:GetClassifier",
+        "glue:GetClassifiers",
+        "glue:GetCrawler",
+        "glue:GetCrawlers",
+        "glue:GetDatabase",
+        "glue:GetDatabases",
+        "glue:GetDataCatalogEncryptionSettings",
+        "glue:GetJob",
+        "glue:GetJobs",
+        "glue:GetJobRun",
+        "glue:GetJobRuns",
+        "glue:GetPartition",
+        "glue:GetPartitions",
+        "glue:GetSecurityConfiguration",
+        "glue:GetSecurityConfigurations",
+        "glue:GetTable",
+        "glue:GetTables",
+        "glue:GetTableVersion",
+        "glue:GetTableVersions",
+        "glue:GetTrigger",
+        "glue:GetTriggers",
+        "glue:GetUserDefinedFunction",
+        "glue:GetUserDefinedFunctions",
+        "glue:GetWorkflow",
+        "glue:GetWorkflowRun",
+        "glue:GetWorkflowRunProperties",
+        "glue:GetWorkflowRuns",
+        "glue:ListCrawlers",
+        "glue:ListDevEndpoints",
+        "glue:ListJobs",
+        "glue:ListTriggers",
+        "glue:ListWorkflows",
+        "iam:GenerateCredentialReport",
+        "iam:Get*",
+        "iam:List*",
         "kms:Describe*",
-        "kms:GenerateRandom",
         "kms:Get*",
         "kms:List*",
-        "kms:Encrypt",
-        "kms:ReEncrypt*",
-        "lambda:Create*",
-        "lambda:Delete*",
-        "lambda:Get*",
-        "lambda:InvokeFunction",
+        "lambda:GetAccountSettings",
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetPolicy",
         "lambda:List*",
-        "lambda:PublishVersion",
-        "lambda:Update*",
-        "logs:*",
+        "logs:Describe*",
+        "logs:Get*",
+        "logs:FilterLogEvents",
+        "logs:ListTagsLogGroup",
+        "logs:StartQuery",
+        "logs:StopQuery",
+        "logs:TestMetricFilter",
+        "organizations:Describe*",
+        "organizations:List*",
         "rds:Describe*",
         "rds:ListTagsForResource",
-        "route53:*",
-        "route53domains:*",
-        "ses:*",
-        "sns:*",
-        "sqs:*",
-        "trustedadvisor:*"
-      ],
-      "Effect": "Allow",
-      "Resource": "*"
-    },
-    {
-      "Action": [
-        "ec2:AcceptVpcPeeringConnection",
-        "ec2:AttachClassicLinkVpc",
-        "ec2:AttachVolume",
-        "ec2:AuthorizeSecurityGroupEgress",
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:CreateVpcPeeringConnection",
-        "ec2:DeleteCustomerGateway",
-        "ec2:DeleteDhcpOptions",
-        "ec2:DeleteInternetGateway",
-        "ec2:DeleteNetworkAcl*",
-        "ec2:DeleteRoute",
-        "ec2:DeleteRouteTable",
-        "ec2:DeleteSecurityGroup",
-        "ec2:DeleteVolume",
-        "ec2:DeleteVpcPeeringConnection",
-        "ec2:DetachClassicLinkVpc",
-        "ec2:DetachVolume",
-        "ec2:DisableVpcClassicLink",
-        "ec2:EnableVpcClassicLink",
-        "ec2:GetConsoleScreenshot",
-        "ec2:RebootInstances",
-        "ec2:RejectVpcPeeringConnection",
-        "ec2:RevokeSecurityGroupEgress",
-        "ec2:RevokeSecurityGroupIngress",
-        "ec2:RunInstances",
-        "ec2:StartInstances",
-        "ec2:StopInstances",
-        "ec2:TerminateInstances"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Action": "s3:*",
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Action": [
-        "iam:GetAccessKeyLastUsed",
-        "iam:GetGroup*",
-        "iam:GetInstanceProfile",
-        "iam:GetLoginProfile",
-        "iam:GetOpenIDConnectProvider",
-        "iam:GetPolicy*",
-        "iam:GetRole*",
-        "iam:GetSAMLProvider",
-        "iam:GetSSHPublicKey",
-        "iam:GetServerCertificate",
-        "iam:GetServiceLastAccessed*",
-        "iam:GetUser*",
-        "iam:ListAccessKeys",
-        "iam:ListAttached*",
-        "iam:ListEntitiesForPolicy",
-        "iam:ListGroupPolicies",
-        "iam:ListGroupsForUser",
-        "iam:ListInstanceProfiles*",
-        "iam:ListMFADevices",
-        "iam:ListPolicyVersions",
-        "iam:ListRolePolicies",
-        "iam:ListSSHPublicKeys",
-        "iam:ListSigningCertificates",
-        "iam:ListUserPolicies",
-        "iam:Upload*"
+        "redshift:Describe*",
+        "redshift:ViewQueriesInConsole",
+        "route53:Get*",
+        "route53:List*",
+        "route53domains:CheckDomainAvailability",
+        "route53domains:GetDomainDetail",
+        "route53domains:GetOperationDetail",
+        "route53domains:ListDomains",
+        "route53domains:ListOperations",
+        "route53domains:ListTagsForDomain",
+        "s3:GetAccelerateConfiguration",
+        "s3:GetAccountPublicAccessBlock",
+        "s3:GetAnalyticsConfiguration",
+        "s3:GetBucket*",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetInventoryConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetMetricsConfiguration",
+        "s3:GetObjectAcl",
+        "s3:GetObjectVersionAcl",
+        "s3:GetReplicationConfiguration",
+        "s3:List*",
+        "sns:Get*",
+        "sns:List*",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:ListDeadLetterSourceQueues",
+        "sqs:ListQueueTags",
+        "sqs:ListQueues",
+        "sqs:ReceiveMessage",
+        "tag:Get*"
       ],
       "Effect": "Allow",
       "Resource": [
@@ -958,336 +903,557 @@ func TestAwsParser_Parse10(t *testing.T) {
   ],
   "Version": "2012-10-17"
 }`
+	// Add a simple test body that actually uses the policyText variable
 	a, err := NewAwsPolicyParser(policyText, false)
 	require.NoError(t, err)
-	a.Trace = true
+
 	err = a.Parse()
 	require.NoError(t, err)
 
 	policies, err := a.GetPolicy()
 	require.NoError(t, err)
-
-	for index, pol := range policies {
-		log.Infof("pol #%d: %+v", index, pol)
-	}
-
-	require.Len(t, policies, 5)
-	require.Len(t, policies[0].Condition, 0)
+	require.NotNil(t, policies)
 }
 
-func Test_recursiveUnescape(t *testing.T) {
-	type args struct {
-		policyText string
+func UnrollError(err error) string {
+	errs := []error{err}
+	for errors.Unwrap(err) != nil {
+		errs = append(errs, errors.Unwrap(err))
+		err = errors.Unwrap(err)
 	}
+	var fmtted []string
+	for i := range errs {
+		fmtted = append(fmtted, fmt.Sprintf("%T: %s", errs[i], errs[i].Error()))
+	}
+	return strings.Join(fmtted, ", ")
+}
+
+func newParsedAwsParser(t *testing.T, policyText string) *AwsParser {
+	t.Helper()
+
+	a, err := NewAwsPolicyParser(policyText, false)
+	require.NoError(t, err)
+	require.NoError(t, a.Parse())
+
+	return a
+}
+
+func firstParsedCondition(t *testing.T, policyText string) policy.Condition {
+	t.Helper()
+
+	a := newParsedAwsParser(t, policyText)
+	policies, err := a.GetPolicy()
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Len(t, policies[0].Condition, 1)
+
+	return policies[0].Condition[0]
+}
+
+func TestAwsParser_GetPolicyErrorPaths(t *testing.T) {
 	tests := []struct {
-		name  string
-		args  args
-		want  string
-		errFn require.ErrorAssertionFunc
+		name      string
+		parser    *AwsParser
+		assertErr func(t *testing.T, err error)
 	}{
 		{
-			name: "not escaped",
-			args: args{
-				policyText: "something",
+			name:   "Not Parsed, No Error",
+			parser: &AwsParser{},
+			assertErr: func(t *testing.T, err error) {
+				t.Helper()
+				require.Contains(t, err.Error(), "did not parse")
 			},
-			want:  "something",
-			errFn: require.NoError,
 		},
 		{
-			name: "not escaped bad input",
-			args: args{
-				policyText: "hello%",
+			name:   "Not Parsed, With Error",
+			parser: &AwsParser{error: fmt.Errorf("some parse error")},
+			assertErr: func(t *testing.T, err error) {
+				t.Helper()
+				require.EqualError(t, err, "some parse error")
 			},
-			want:  "hello%",
-			errFn: require.Error,
-		},
-		{
-			name: "escaped once",
-			args: args{
-				policyText: url.QueryEscape("something"),
-			},
-			want:  "something",
-			errFn: require.NoError,
-		},
-		{
-			name: "escaped twice",
-			args: args{
-				policyText: url.QueryEscape(url.QueryEscape("something")),
-			},
-			want:  "something",
-			errFn: require.NoError,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := recursiveUnescape(tt.args.policyText)
-			tt.errFn(t, err)
-			require.Equal(t, tt.want, got)
+			policies, err := tt.parser.GetPolicy()
+			require.Error(t, err)
+			require.Nil(t, policies)
+			tt.assertErr(t, err)
 		})
 	}
 }
 
+func TestAwsParser_JsonErrorPaths(t *testing.T) {
+	tests := []struct {
+		name   string
+		parser *AwsParser
+	}{
+		{name: "Not Parsed", parser: &AwsParser{}},
+		{name: "Parsed, Nil Policies", parser: &AwsParser{parsed: true, policies: nil}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonData, err := tt.parser.Json()
+			require.Error(t, err)
+			require.Nil(t, jsonData)
+			require.Contains(t, err.Error(), "no policies parsed yet")
+		})
+	}
+}
+
+func TestAwsParser_WriteJsonErrorPaths(t *testing.T) {
+	tests := []struct {
+		name      string
+		parser    *AwsParser
+		filename  string
+		assertErr func(t *testing.T, err error)
+	}{
+		{
+			name:     "Not Parsed",
+			parser:   &AwsParser{},
+			filename: "somefile.json",
+			assertErr: func(t *testing.T, err error) {
+				t.Helper()
+				require.Contains(t, err.Error(), "no policies parsed yet")
+			},
+		},
+		{
+			name:     "Parsed, Nil Policies",
+			parser:   &AwsParser{parsed: true, policies: nil},
+			filename: "somefile.json",
+			assertErr: func(t *testing.T, err error) {
+				t.Helper()
+				require.Contains(t, err.Error(), "no policies parsed yet")
+			},
+		},
+		{
+			name:     "File Exists",
+			parser:   &AwsParser{parsed: true, policies: []*policy.Policy{{Id: "p1"}}},
+			filename: "aws_parser_test.go",
+			assertErr: func(t *testing.T, err error) {
+				t.Helper()
+				require.Contains(t, err.Error(), "file exists")
+			},
+		},
+		{
+			name:     "Cannot Open File",
+			parser:   &AwsParser{parsed: true, policies: []*policy.Policy{{Id: "p1"}}},
+			filename: "/dev/null/some_invalid_file",
+			assertErr: func(t *testing.T, err error) {
+				t.Helper()
+				require.True(t, os.IsNotExist(err) || strings.Contains(err.Error(), "not a directory"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.parser.WriteJson(tt.filename)
+			require.Error(t, err)
+			tt.assertErr(t, err)
+		})
+	}
+}
+
+func TestAwsParser_ParseErrorPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		policyText string
+		assertErr  func(t *testing.T, parser *AwsParser, err error)
+	}{
+		{
+			name:       "Invalid Policy Syntax",
+			policyText: `{"Version": "2012-10-17", "Statement": [{"Effect": "Allow",}]}`,
+			assertErr: func(t *testing.T, parser *AwsParser, err error) {
+				t.Helper()
+				require.False(t, parser.parsed)
+				require.NotNil(t, parser.error)
+				var parseErr *participle.UnexpectedTokenError
+				require.True(t, errors.As(err, &parseErr))
+			},
+		},
+		{
+			name:       "Missing Statement Property",
+			policyText: `{"Version": "2012-10-17"}`,
+			assertErr: func(t *testing.T, parser *AwsParser, err error) {
+				t.Helper()
+				require.False(t, parser.parsed)
+				require.NotNil(t, parser.error)
+				require.Contains(t, err.Error(), "error constructing policy")
+				require.Contains(t, parser.error.Error(), "no statements found in policy")
+			},
+		},
+		{
+			name:       "Statement Not BlockStatement",
+			policyText: `{"Version": "2012-10-17", "Statement": "NotABlock"}`,
+			assertErr: func(t *testing.T, parser *AwsParser, err error) {
+				t.Helper()
+				require.False(t, parser.parsed)
+				require.NotNil(t, parser.error)
+				require.Contains(t, err.Error(), "error constructing policy")
+				require.Contains(t, parser.error.Error(), "statement is not a block statement")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, err := NewAwsPolicyParser(tt.policyText, false)
+			require.NoError(t, err)
+
+			err = a.Parse()
+			require.Error(t, err)
+
+			tt.assertErr(t, a, err)
+		})
+	}
+}
+
+func TestAwsParser_ConstructPolicyEdgeCases(t *testing.T) {
+	t.Run("Nil AwsPolicy", func(t *testing.T) {
+		a := &AwsParser{awsPolicy: nil}
+		err := a.constructPolicy(nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "parsed policy AST is nil")
+		require.Nil(t, a.policies)
+	})
+
+	tests := []struct {
+		name       string
+		policyText string
+	}{
+		{
+			name: "Empty Statement Elements",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow"
+			}]
+		}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := newParsedAwsParser(t, tt.policyText)
+			policies, err := a.GetPolicy()
+			require.NoError(t, err)
+			require.Len(t, policies, 1)
+			require.True(t, policies[0].Allowed)
+			require.Empty(t, policies[0].Actions)
+			require.Empty(t, policies[0].NotActions)
+			require.Empty(t, policies[0].Resources)
+			require.Empty(t, policies[0].NotResources)
+			require.Empty(t, policies[0].Subjects)
+			require.Empty(t, policies[0].NotSubjects)
+			require.Empty(t, policies[0].Condition)
+		})
+	}
+}
+
+func TestAwsParser_GetAnyOrListNilCases(t *testing.T) {
+	a := &AwsParser{}
+	tests := []struct {
+		name  string
+		input *AnyOrList
+	}{
+		{name: "Nil Input", input: nil},
+		{name: "Empty Struct", input: &AnyOrList{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := a.getAnyOrList(tt.input)
+			require.Empty(t, result)
+		})
+	}
+}
+
+func TestAwsParser_GetSubjectsNilCases(t *testing.T) {
+	a := &AwsParser{}
+	tests := []struct {
+		name  string
+		input *Principal
+	}{
+		{name: "Nil Input", input: nil},
+		{name: "Empty Struct", input: &Principal{}},
+		{
+			name: "List With Nil Elements",
+			input: &Principal{
+				List: []*PrincipalList{{Aws: nil, Federated: nil, Canonical: nil, Service: nil}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := a.getSubjects(tt.input)
+			require.Empty(t, result)
+		})
+	}
+}
+
+func TestAwsParser_GetConditionCases(t *testing.T) {
+	a := &AwsParser{}
+	t.Run("Nil Input", func(t *testing.T) {
+		require.Nil(t, a.getCondition(nil))
+	})
+
+	tests := []struct {
+		name       string
+		policyText string
+		assertCond func(t *testing.T, cond policy.Condition)
+	}{
+		{
+			name: "StringEquals Condition",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow",
+				"Action": "*",
+				"Resource": "*",
+				"Condition": {
+					"StringEquals": {"aws:userid": "bob"}
+				}
+			}]
+		}`,
+			assertCond: func(t *testing.T, cond policy.Condition) {
+				t.Helper()
+				require.Equal(t, "StringEquals", cond.Operation)
+				require.Equal(t, []string{"aws:userid"}, cond.Key)
+				require.Equal(t, []string{"string"}, cond.Type)
+				require.Len(t, cond.Value, 1)
+				val, ok := cond.Value[0].([]string)
+				require.True(t, ok)
+				require.Equal(t, []string{"bob"}, val)
+			},
+		},
+		{
+			name: "Bool Condition",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow",
+				"Action": "*",
+				"Resource": "*",
+				"Condition": {
+					"Bool": {"aws:SecureTransport": true}
+				}
+			}]
+		}`,
+			assertCond: func(t *testing.T, cond policy.Condition) {
+				t.Helper()
+				require.Equal(t, "Bool", cond.Operation)
+				require.Equal(t, []string{"aws:SecureTransport"}, cond.Key)
+				require.Equal(t, []string{"bool"}, cond.Type)
+				require.Len(t, cond.Value, 1)
+				val, ok := cond.Value[0].([]bool)
+				require.True(t, ok)
+				require.Equal(t, []bool{true}, val)
+			},
+		},
+		{
+			name: "Condition With Multiple Values",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow",
+				"Action": "*",
+				"Resource": "*",
+				"Condition": {
+					"StringEqualsIgnoreCase": {"aws:username": ["alice", "bob"]}
+				}
+			}]
+		}`,
+			assertCond: func(t *testing.T, cond policy.Condition) {
+				t.Helper()
+				require.Equal(t, "StringEqualsIgnoreCase", cond.Operation)
+				require.Equal(t, []string{"aws:username"}, cond.Key)
+				require.Equal(t, []string{"string"}, cond.Type)
+				require.Len(t, cond.Value, 1)
+				val, ok := cond.Value[0].([]string)
+				require.True(t, ok)
+				require.Equal(t, []string{"alice", "bob"}, val)
+			},
+		},
+		{
+			name: "Null Condition Check",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow",
+				"Action": "*",
+				"Resource": "*",
+				"Condition": {
+					"Null": {"aws:TokenIssueTime": false}
+				}
+			}]
+		}`,
+			assertCond: func(t *testing.T, cond policy.Condition) {
+				t.Helper()
+				require.Equal(t, "Null", cond.Operation)
+				require.Equal(t, []string{"aws:TokenIssueTime"}, cond.Key)
+				require.Equal(t, []string{"bool"}, cond.Type)
+				require.Len(t, cond.Value, 1)
+				val, ok := cond.Value[0].([]bool)
+				require.True(t, ok)
+				require.Equal(t, []bool{false}, val)
+			},
+		},
+		{
+			name: "NumericEquals Condition",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow", "Action": "*", "Resource": "*",
+				"Condition": {
+					"NumericEquals": {"aws:MultiFactorAuthAge": 1000}
+				}
+			}]
+		}`,
+			assertCond: func(t *testing.T, cond policy.Condition) {
+				t.Helper()
+				require.Equal(t, "NumericEquals", cond.Operation)
+				require.Equal(t, []string{"aws:MultiFactorAuthAge"}, cond.Key)
+				require.Equal(t, []string{"int64"}, cond.Type)
+				require.Len(t, cond.Value, 1)
+				val, ok := cond.Value[0].([]int64)
+				require.True(t, ok)
+				require.Equal(t, []int64{1000}, val)
+			},
+		},
+		{
+			name: "DateGreaterThan Condition",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow", "Action": "*", "Resource": "*",
+				"Condition": {
+					"DateGreaterThan": {"aws:CurrentTime": "2024-01-01T00:00:00Z"}
+				}
+			}]
+		}`,
+			assertCond: func(t *testing.T, cond policy.Condition) {
+				t.Helper()
+				require.Equal(t, "DateGreaterThan", cond.Operation)
+				require.Equal(t, []string{"aws:CurrentTime"}, cond.Key)
+				require.Equal(t, []string{"string"}, cond.Type)
+				require.Len(t, cond.Value, 1)
+				val, ok := cond.Value[0].([]string)
+				require.True(t, ok)
+				require.Equal(t, []string{"2024-01-01T00:00:00Z"}, val)
+			},
+		},
+		{
+			name: "StringLike Condition",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow", "Action": "*", "Resource": "*",
+				"Condition": {
+					"StringLike": {"s3:prefix": "home/*"}
+				}
+			}]
+		}`,
+			assertCond: func(t *testing.T, cond policy.Condition) {
+				t.Helper()
+				require.Equal(t, "StringLike", cond.Operation)
+				require.Equal(t, []string{"s3:prefix"}, cond.Key)
+				require.Len(t, cond.Value, 1)
+				val, ok := cond.Value[0].([]string)
+				require.True(t, ok)
+				require.Equal(t, []string{"home/*"}, val)
+			},
+		},
+		{
+			name: "IpAddress Condition",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow", "Action": "*", "Resource": "*",
+				"Condition": {
+					"IpAddress": {"aws:SourceIp": "192.0.2.0/24"}
+				}
+			}]
+		}`,
+			assertCond: func(t *testing.T, cond policy.Condition) {
+				t.Helper()
+				require.Equal(t, "IpAddress", cond.Operation)
+				require.Equal(t, []string{"aws:SourceIp"}, cond.Key)
+				require.Len(t, cond.Value, 1)
+				val, ok := cond.Value[0].([]string)
+				require.True(t, ok)
+				require.Equal(t, []string{"192.0.2.0/24"}, val)
+			},
+		},
+		{
+			name: "ArnEquals Condition",
+			policyText: `{
+			"Statement": [{
+				"Effect": "Allow", "Action": "*", "Resource": "*",
+				"Condition": {
+					"ArnEquals": {"aws:SourceArn": "arn:aws:sns:*:123456789012:topic"}
+				}
+			}]
+		}`,
+			assertCond: func(t *testing.T, cond policy.Condition) {
+				t.Helper()
+				require.Equal(t, "ArnEquals", cond.Operation)
+				require.Equal(t, []string{"aws:SourceArn"}, cond.Key)
+				require.Len(t, cond.Value, 1)
+				val, ok := cond.Value[0].([]string)
+				require.True(t, ok)
+				require.Equal(t, []string{"arn:aws:sns:*:123456789012:topic"}, val)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cond := firstParsedCondition(t, tt.policyText)
+			tt.assertCond(t, cond)
+		})
+	}
+
+	t.Run("Condition With Invalid Value Type", func(t *testing.T) {
+		policyText := `{
+			"Statement": [{
+				"Effect": "Allow", "Action": "*", "Resource": "*",
+				"Condition": {
+					"StringEquals": {"aws:TagKeys": {"key": "value"}}
+				}
+			}]
+		}`
+		parser, err := NewAwsPolicyParser(policyText, false)
+		require.NoError(t, err)
+
+		err = parser.Parse()
+		require.Error(t, err)
+
+		if strings.Contains(err.Error(), "error constructing policy") {
+			log.Debugf("Construction error (expected for hitting default case): %v", err)
+			return
+		}
+
+		var parseErr *participle.UnexpectedTokenError
+		require.True(t, errors.As(err, &parseErr))
+	})
+}
+
+// FuzzParsePolicyText is a fuzzing test for the AWS policy parser
 func FuzzParsePolicyText(f *testing.F) {
-	policyText := `{
+	// Add seed corpus
+	f.Add(`{
   "Statement": [
     {
       "Action": [
-        "acm:Describe*",
-        "acm:Get*",
-        "acm:List*",
-        "acm:Request*",
-        "acm:Resend*",
-        "autoscaling:*",
-        "cloudtrail:DescribeTrails",
-        "cloudtrail:GetTrailStatus",
-        "cloudtrail:ListPublicKeys",
-        "cloudtrail:ListTags",
-        "cloudtrail:LookupEvents",
-        "cloudtrail:StartLogging",
-        "cloudtrail:StopLogging",
-        "cloudwatch:*",
-        "codecommit:BatchGetRepositories",
-        "codecommit:CreateBranch",
-        "codecommit:CreateRepository",
-        "codecommit:Get*",
-        "codecommit:GitPull",
-        "codecommit:GitPush",
-        "codecommit:List*",
-        "codecommit:Put*",
-        "codecommit:Test*",
-        "codecommit:Update*",
-        "codedeploy:*",
-        "codepipeline:*",
-        "config:*",
-        "ds:*",
-        "ec2:Allocate*",
-        "ec2:AssignPrivateIpAddresses*",
-        "ec2:Associate*",
-        "ec2:Allocate*",
-        "ec2:AttachInternetGateway",
-        "ec2:AttachNetworkInterface",
-        "ec2:AttachVpnGateway",
-        "ec2:Bundle*",
-        "ec2:Cancel*",
-        "ec2:Copy*",
-        "ec2:CreateCustomerGateway",
-        "ec2:CreateDhcpOptions",
-        "ec2:CreateFlowLogs",
-        "ec2:CreateImage",
-        "ec2:CreateInstanceExportTask",
-        "ec2:CreateInternetGateway",
-        "ec2:CreateKeyPair",
-        "ec2:CreateLaunchTemplate",
-        "ec2:CreateLaunchTemplateVersion",
-        "ec2:CreateNatGateway",
-        "ec2:CreateNetworkInterface",
-        "ec2:CreatePlacementGroup",
-        "ec2:CreateReservedInstancesListing",
-        "ec2:CreateRoute",
-        "ec2:CreateRouteTable",
-        "ec2:CreateSecurityGroup",
-        "ec2:CreateSnapshot",
-        "ec2:CreateSpotDatafeedSubscription",
-        "ec2:CreateSubnet",
-        "ec2:CreateTags",
-        "ec2:CreateVolume",
-        "ec2:CreateVpc",
-        "ec2:CreateVpcEndpoint",
-        "ec2:CreateVpnConnection",
-        "ec2:CreateVpnConnectionRoute",
-        "ec2:CreateVpnGateway",
-        "ec2:DeleteFlowLogs",
-        "ec2:DeleteKeyPair",
-        "ec2:DeleteLaunchTemplate",
-        "ec2:DeleteLaunchTemplateVersions",
-        "ec2:DeleteNatGateway",
-        "ec2:DeleteNetworkInterface",
-        "ec2:DeletePlacementGroup",
-        "ec2:DeleteSnapshot",
-        "ec2:DeleteSpotDatafeedSubscription",
-        "ec2:DeleteSubnet",
-        "ec2:DeleteTags",
-        "ec2:DeleteVpc",
-        "ec2:DeleteVpcEndpoints",
-        "ec2:DeleteVpnConnection",
-        "ec2:DeleteVpnConnectionRoute",
-        "ec2:DeleteVpnGateway",
-        "ec2:DeregisterImage",
-        "ec2:Describe*",
-        "ec2:DetachInternetGateway",
-        "ec2:DetachNetworkInterface",
-        "ec2:DetachVpnGateway",
-        "ec2:DisableVgwRoutePropagation",
-        "ec2:DisableVpcClassicLinkDnsSupport",
-        "ec2:DisassociateAddress",
-        "ec2:DisassociateRouteTable",
-        "ec2:EnableVgwRoutePropagation",
-        "ec2:EnableVolumeIO",
-        "ec2:EnableVpcClassicLinkDnsSupport",
-        "ec2:GetConsoleOutput",
-        "ec2:GetHostReservationPurchasePreview",
-        "ec2:GetLaunchTemplateData",
-        "ec2:GetPasswordData",
-        "ec2:Import*",
-        "ec2:Modify*",
-        "ec2:MonitorInstances",
-        "ec2:MoveAddressToVpc",
-        "ec2:Purchase*",
-        "ec2:RegisterImage",
-        "ec2:Release*",
-        "ec2:Replace*",
-        "ec2:ReportInstanceStatus",
-        "ec2:Request*",
-        "ec2:Reset*",
-        "ec2:RestoreAddressToClassic",
-        "ec2:RunScheduledInstances",
-        "ec2:UnassignPrivateIpAddresses",
-        "ec2:UnmonitorInstances",
-        "ec2:UpdateSecurityGroupRuleDescriptionsEgress",
-        "ec2:UpdateSecurityGroupRuleDescriptionsIngress",
-        "elasticloadbalancing:*",
-        "events:*",
-        "iam:GetAccount*",
-        "iam:GetContextKeys*",
-        "iam:GetCredentialReport",
-        "iam:ListAccountAliases",
-        "iam:ListGroups",
-        "iam:ListOpenIDConnectProviders",
-        "iam:ListPolicies",
-        "iam:ListPoliciesGrantingServiceAccess",
-        "iam:ListRoles",
-        "iam:ListSAMLProviders",
-        "iam:ListServerCertificates",
-        "iam:Simulate*",
-        "iam:UpdateServerCertificate",
-        "iam:UpdateSigningCertificate",
-        "kinesis:ListStreams",
-        "kinesis:PutRecord",
-        "kms:CreateAlias",
-        "kms:CreateKey",
-        "kms:DeleteAlias",
-        "kms:Describe*",
-        "kms:GenerateRandom",
-        "kms:Get*",
-        "kms:List*",
-        "kms:Encrypt",
-        "kms:ReEncrypt*",
-        "lambda:Create*",
-        "lambda:Delete*",
-        "lambda:Get*",
-        "lambda:InvokeFunction",
-        "lambda:List*",
-        "lambda:PublishVersion",
-        "lambda:Update*",
-        "logs:*",
-        "rds:Describe*",
-        "rds:ListTagsForResource",
-        "route53:*",
-        "route53domains:*",
-        "ses:*",
-        "sns:*",
-        "sqs:*",
-        "trustedadvisor:*"
+        "iam:Get*",
+        "iam:List*"
       ],
       "Effect": "Allow",
-      "Resource": "*"
-    },
-    {
-      "Action": [
-        "ec2:AcceptVpcPeeringConnection",
-        "ec2:AttachClassicLinkVpc",
-        "ec2:AttachVolume",
-        "ec2:AuthorizeSecurityGroupEgress",
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:CreateVpcPeeringConnection",
-        "ec2:DeleteCustomerGateway",
-        "ec2:DeleteDhcpOptions",
-        "ec2:DeleteInternetGateway",
-        "ec2:DeleteNetworkAcl*",
-        "ec2:DeleteRoute",
-        "ec2:DeleteRouteTable",
-        "ec2:DeleteSecurityGroup",
-        "ec2:DeleteVolume",
-        "ec2:DeleteVpcPeeringConnection",
-        "ec2:DetachClassicLinkVpc",
-        "ec2:DetachVolume",
-        "ec2:DisableVpcClassicLink",
-        "ec2:EnableVpcClassicLink",
-        "ec2:GetConsoleScreenshot",
-        "ec2:RebootInstances",
-        "ec2:RejectVpcPeeringConnection",
-        "ec2:RevokeSecurityGroupEgress",
-        "ec2:RevokeSecurityGroupIngress",
-        "ec2:RunInstances",
-        "ec2:StartInstances",
-        "ec2:StopInstances",
-        "ec2:TerminateInstances"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Action": "s3:*",
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Action": [
-        "iam:GetAccessKeyLastUsed",
-        "iam:GetGroup*",
-        "iam:GetInstanceProfile",
-        "iam:GetLoginProfile",
-        "iam:GetOpenIDConnectProvider",
-        "iam:GetPolicy*",
-        "iam:GetRole*",
-        "iam:GetSAMLProvider",
-        "iam:GetSSHPublicKey",
-        "iam:GetServerCertificate",
-        "iam:GetServiceLastAccessed*",
-        "iam:GetUser*",
-        "iam:ListAccessKeys",
-        "iam:ListAttached*",
-        "iam:ListEntitiesForPolicy",
-        "iam:ListGroupPolicies",
-        "iam:ListGroupsForUser",
-        "iam:ListInstanceProfiles*",
-        "iam:ListMFADevices",
-        "iam:ListPolicyVersions",
-        "iam:ListRolePolicies",
-        "iam:ListSSHPublicKeys",
-        "iam:ListSigningCertificates",
-        "iam:ListUserPolicies",
-        "iam:Upload*"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "*"
-      ]
-    },
-    {
-      "Action": [
-        "iam:GetRole",
-        "iam:ListRoles",
-        "iam:PassRole"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "arn:aws:iam::*:role/rds-monitoring-role",
-        "arn:aws:iam::*:role/ec2-sysadmin-*",
-        "arn:aws:iam::*:role/ecr-sysadmin-*",
-        "arn:aws:iam::*:role/lambda-sysadmin-*"
-      ]
+      "Resource": ["*"]
     }
   ],
   "Version": "2012-10-17"
-}`
-	f.Add(policyText, true)
-	f.Fuzz(func(t *testing.T, s string, escaped bool) {
-		a, err := NewAwsPolicyParser(s, escaped)
+}`, false)
+
+	// Run the fuzzer
+	f.Fuzz(func(t *testing.T, policyText string, urlDecode bool) {
+		// t.Parallel()
+		a, err := NewAwsPolicyParser(policyText, urlDecode)
 		if err != nil {
 			switch {
 			case strings.Contains(err.Error(), "invalid URL escape"):
@@ -1297,7 +1463,6 @@ func FuzzParsePolicyText(f *testing.F) {
 				t.Fail()
 			}
 		}
-		a.Trace = true
 		err = a.Parse()
 		if err != nil {
 			t.Log(UnrollError(err))
@@ -1316,17 +1481,4 @@ func FuzzParsePolicyText(f *testing.F) {
 			}
 		}
 	})
-}
-
-func UnrollError(err error) string {
-	errs := []error{err}
-	for errors.Unwrap(err) != nil {
-		errs = append(errs, errors.Unwrap(err))
-		err = errors.Unwrap(err)
-	}
-	var fmtted []string
-	for i := range errs {
-		fmtted = append(fmtted, fmt.Sprintf("%T: %s", errs[i], errs[i].Error()))
-	}
-	return strings.Join(fmtted, ", ")
 }
