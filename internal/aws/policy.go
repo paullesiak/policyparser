@@ -52,30 +52,30 @@ awsPolicy  = {
 */
 
 type AwsPolicy struct {
-	Block *Block `"{" @@ "}"`
+	Block *Block `parser:"'{' @@ '}'"`
 }
 
 type BlockValue interface{ value() }
 
 type BlockString struct {
-	String string `@String`
+	String string `parser:"@String"`
 }
 
 func (BlockString) value() {}
 
 type BlockStatement struct {
-	Statement []*Statement `"[" "{" @@ "}" ( ( "," "{" @@ "}" )* )? "]"`
+	Statement []*Statement `parser:"'[' '{' @@ '}' ((',' '{' @@ '}')*)? ']'"`
 }
 
 func (BlockStatement) value() {}
 
 type BlockProperty struct {
-	Key   string     `@String ":"`
-	Value BlockValue `@@`
+	Key   string     `parser:"@String ':'"`
+	Value BlockValue `parser:"@@"`
 }
 
 type Block struct {
-	Properties  []*BlockProperty `@@ (("," @@)*)?`
+	Properties  []*BlockProperty `parser:"@@ ((',' @@)*)?"`
 	propertyMap map[string]*BlockProperty
 }
 
@@ -93,65 +93,65 @@ func (b *Block) GetProperty(key string) *BlockProperty {
 }
 
 type Statement struct {
-	Elements []*Elements `@@ ("," @@)*`
+	Elements []*Elements `parser:"@@ (',' @@)*"`
 }
 
 type Elements struct {
-	Sid          *string    `"Sid" ":" @String`
-	Effect       *string    `| "Effect" ":" @String`
-	Principal    *Principal `| "Principal" ":" @@`
-	NotPrincipal *Principal `| "NotPrincipal" ":" @@`
-	Action       *AnyOrList `| "Action" ":" @@`
-	NotAction    *AnyOrList `| "NotAction" ":" @@`
-	Resource     *AnyOrList `| "Resource" ":" @@`
-	NotResource  *AnyOrList `| "NotResource" ":" @@`
-	Condition    *Condition `| "Condition" ":" @@`
+	Sid          *string    `parser:"'Sid' ':' @String"`
+	Effect       *string    `parser:"| 'Effect' ':' @String"`
+	Principal    *Principal `parser:"| 'Principal' ':' @@"`
+	NotPrincipal *Principal `parser:"| 'NotPrincipal' ':' @@"`
+	Action       *AnyOrList `parser:"| 'Action' ':' @@"`
+	NotAction    *AnyOrList `parser:"| 'NotAction' ':' @@"`
+	Resource     *AnyOrList `parser:"| 'Resource' ':' @@"`
+	NotResource  *AnyOrList `parser:"| 'NotResource' ':' @@"`
+	Condition    *Condition `parser:"| 'Condition' ':' @@"`
 }
 
 type AnyOrList struct {
-	Item *Item   `@@`
-	List []*Item `| "[" @@ ( ( "," @@ )* )? "]"`
+	Item *Item   `parser:"@@"`
+	List []*Item `parser:"| '[' @@ ((',' @@)*)? ']'"`
 }
 
 type Item struct {
-	Any bool    `@("*")`
-	One *string `| @String`
+	Any bool    `parser:"@'*'"`
+	One *string `parser:"| @String"`
 }
 
 type Principal struct {
-	Any  bool             `@("*")`
-	List []*PrincipalList `| "{" @@ ( ("," @@ )* )? "}"`
+	Any  bool             `parser:"@'*'"`
+	List []*PrincipalList `parser:"| '{' @@ ((',' @@)*)? '}'"`
 }
 
 type PrincipalList struct {
-	Aws       *AnyOrList `"AWS" ":" @@`
-	Federated *AnyOrList `| "Federated" ":" @@`
-	Canonical *AnyOrList `| "CanonicalUser" ":" @@`
-	Service   *AnyOrList `| "Service" ":" @@`
+	Aws       *AnyOrList `parser:"'AWS' ':' @@"`
+	Federated *AnyOrList `parser:"| 'Federated' ':' @@"`
+	Canonical *AnyOrList `parser:"| 'CanonicalUser' ':' @@"`
+	Service   *AnyOrList `parser:"| 'Service' ':' @@"`
 }
 
 type Condition struct {
-	ConditionList []*ConditionList `"{" @@ ( ( (",") @@ )* )? "}"`
+	ConditionList []*ConditionList `parser:"'{' @@ ((',' @@)*)? '}'"`
 }
 
 type ConditionList struct {
-	Operation    *string         `@String ":"`
-	KeyValueList []*KeyValueList `"{" @@ ( ( "," @@)*)? "}"`
+	Operation    *string         `parser:"@String ':'"`
+	KeyValueList []*KeyValueList `parser:"'{' @@ ((',' @@)*)? '}'"`
 }
 
 type KeyValueList struct {
-	Key   *string    `@String ":"`
-	Value *ValueList `@@`
+	Key   *string    `parser:"@String ':'"`
+	Value *ValueList `parser:"@@"`
 }
 
 type ValueList struct {
-	One  *Value   `@@`
-	List []*Value `| "[" @@ ( ("," @@ )* )? "]"`
+	One  *Value   `parser:"@@"`
+	List []*Value `parser:"| '[' @@ ((',' @@)*)? ']'"`
 }
 
 type Value struct {
-	OneString *string `@String`
-	OneNumber *int64  `| @Int`
-	BoolTrue  *bool   `| @"true"`
-	BoolFalse *bool   `| @"false"`
+	OneString *string `parser:"@String"`
+	OneNumber *int64  `parser:"| @Int"`
+	BoolTrue  *bool   `parser:"| @'true'"`
+	BoolFalse *bool   `parser:"| @'false'"`
 }

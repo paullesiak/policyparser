@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/alecthomas/participle/v2"
-	log "github.com/sirupsen/logrus"
+	log "github.com/paullesiak/policyparser/internal/logger"
 
 	"github.com/paullesiak/policyparser/pkg/policy"
 )
@@ -120,16 +120,20 @@ func (a *AwsParser) Json() ([]byte, error) {
 func (a *AwsParser) WriteJson(filename string) error {
 	if a.parsed && a.policies != nil {
 		if _, err := os.Stat(filename); err == nil {
-			return fmt.Errorf("File exists: %s", filename)
+			return fmt.Errorf("file exists: %s", filename)
 		}
 		f, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0666)
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+
 		enc := json.NewEncoder(f)
 		enc.SetEscapeHTML(false)
-		return enc.Encode(a.policies)
+		if err := enc.Encode(a.policies); err != nil {
+			_ = f.Close()
+			return err
+		}
+		return f.Close()
 	}
 	return fmt.Errorf("no policies parsed yet")
 }
