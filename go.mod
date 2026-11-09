@@ -31,3 +31,7 @@ require (
 )
 
 tool github.com/mibk/dupl
+
+// v0.0.12 was first tagged on a feature-branch commit and proxy.golang.org cached that
+// metadata; the same content is released as v0.0.13 from the merge commit on main.
+retract v0.0.12
