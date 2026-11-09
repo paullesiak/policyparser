@@ -1449,6 +1449,7 @@ func FuzzParsePolicyText(f *testing.F) {
   ],
   "Version": "2012-10-17"
 }`, false)
+	f.Add(`{"Version": "2012-10-17", "Statement": {"Sid": "Single", "Effect": "Allow", "Action": ["s3:GetObject"], "Resource": "arn:aws:s3:::b/*", "Condition": {"NumericLessThan": {"s3:max-keys": -1.5}}}}`, false)
 
 	// Run the fuzzer
 	f.Fuzz(func(t *testing.T, policyText string, urlDecode bool) {
@@ -1470,6 +1471,8 @@ func FuzzParsePolicyText(f *testing.F) {
 			var le *lexer.Error
 			var ppe *participle.ParseError
 			switch {
+			case errors.Is(err, ErrNoStatements), errors.Is(err, ErrStatementNotBlock), errors.Is(err, ErrPropertyNotString):
+				return // a well-formed document the parser rejects on purpose
 			case errors.As(err, &pute):
 				return
 			case errors.As(err, &le):

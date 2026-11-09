@@ -25,3 +25,10 @@ func Int64Value(x *int64) int64 {
 	}
 	return 0
 }
+
+func Float64Value(x *float64) float64 {
+	if x != nil {
+		return *x
+	}
+	return 0
+}
