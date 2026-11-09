@@ -13,7 +13,7 @@ awsPolicy  = {
 
 <id_block> = "Id" : <policy_id_string>
 
-<statement_block> = "Statement" : [ <statement>, <statement>, ... ]
+<statement_block> = "Statement" : ( <statement> | [ <statement>, <statement>, ... ] )
 
 <statement> = {
     <sid_block?>,
@@ -36,10 +36,10 @@ awsPolicy  = {
     [<principal_id_string>, <principal_id_string>, ...]
 
 <action_block> = ("Action" | "NotAction") :
-    ("*" | [<action_string>, <action_string>, ...])
+    ("*" | <action_string> | [<action_string>, <action_string>, ...])
 
 <resource_block> = ("Resource" | "NotResource") :
-    ("*" | [<resource_string>, <resource_string>, ...])
+    ("*" | <resource_string> | [<resource_string>, <resource_string>, ...])
 
 <condition_block> = "Condition" : { <condition_map> }
 <condition_map> = {
@@ -48,6 +48,10 @@ awsPolicy  = {
 }
 <condition_value_list> = [<condition_value>, <condition_value>, ...]
 <condition_value> = ("string" | "number" | "Boolean")
+
+Brackets are optional around a single value wherever the grammar shows an array, and a
+number may be negative, decimal or exponent-form (RFC 7159).
+| "number" | "Boolean")
 
 */
 
@@ -63,8 +67,10 @@ type BlockString struct {
 
 func (BlockString) value() {}
 
+// BlockStatement is the Statement block: an array of statement objects, or a single statement
+// object since brackets are optional around a single value.
 type BlockStatement struct {
-	Statement []*Statement `parser:"'[' '{' @@ '}' ((',' '{' @@ '}')*)? ']'"`
+	Statement []*Statement `parser:"'[' '{' @@ '}' ((',' '{' @@ '}')*)? ']' | '{' @@ '}'"`
 }
 
 func (BlockStatement) value() {}
@@ -150,8 +156,9 @@ type ValueList struct {
 }
 
 type Value struct {
-	OneString *string `parser:"@String"`
-	OneNumber *int64  `parser:"| @Int"`
-	BoolTrue  *bool   `parser:"| @'true'"`
-	BoolFalse *bool   `parser:"| @'false'"`
+	OneString *string  `parser:"@String"`
+	OneNumber *int64   `parser:"| @('-'? Int)"`
+	OneFloat  *float64 `parser:"| @('-'? Float)"`
+	BoolTrue  *bool    `parser:"| @'true'"`
+	BoolFalse *bool    `parser:"| @'false'"`
 }

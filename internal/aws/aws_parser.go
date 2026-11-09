@@ -21,6 +21,15 @@ var (
 	cachedParserErr  error
 )
 
+var (
+	// ErrNoStatements reports a syntactically valid document without a Statement block.
+	ErrNoStatements = errors.New("no statements found in policy")
+	// ErrStatementNotBlock reports a Statement value that is neither a statement object nor an array of them.
+	ErrStatementNotBlock = errors.New("statement is not a block statement")
+	// ErrPropertyNotString reports an Id or Version value that is not a string.
+	ErrPropertyNotString = errors.New("property is not a string")
+)
+
 func getParser() (*participle.Parser[AwsPolicy], error) {
 	cachedParserOnce.Do(func() {
 		cachedParser, cachedParserErr = participle.Build[AwsPolicy](
@@ -91,8 +100,7 @@ func (a *AwsParser) Parse() error {
 			a.parsed = true
 		}
 	} else {
-		var p *participle.UnexpectedTokenError
-		if errors.As(err, &p) {
+		if p, ok := errors.AsType[*participle.UnexpectedTokenError](err); ok {
 			log.Errorf("Error parsing policy: %s : %s", p.Error(), p.Unexpected.Pos.String())
 		}
 		a.error = err
@@ -145,18 +153,19 @@ func (a *AwsParser) constructPolicy(ast *AwsPolicy) error {
 
 	a.policies = []*policy.Policy{}
 
-	var id, version string
-	if x := ast.Block.GetProperty("Id"); x != nil {
-		id = x.Value.(BlockString).String
+	id, err := stringProperty(ast.Block, "Id")
+	if err != nil {
+		return err
 	}
-	if x := ast.Block.GetProperty("Version"); x != nil {
-		version = x.Value.(BlockString).String
+	version, err := stringProperty(ast.Block, "Version")
+	if err != nil {
+		return err
 	}
 
 	if x := ast.Block.GetProperty("Statement"); x != nil {
 		blockStatement, ok := x.Value.(BlockStatement)
 		if !ok {
-			return fmt.Errorf("statement is not a block statement")
+			return ErrStatementNotBlock
 		}
 		statements := blockStatement.Statement
 		for index, statement := range statements {
@@ -203,7 +212,7 @@ func (a *AwsParser) constructPolicy(ast *AwsPolicy) error {
 			a.policies = append(a.policies, pol)
 		}
 	} else {
-		return fmt.Errorf("no statements found in policy")
+		return ErrNoStatements
 	}
 	return nil
 }
@@ -303,6 +312,10 @@ func (a *AwsParser) getCondition(c *Condition) []policy.Condition {
 					val = []int64{Int64Value(kvList.Value.One.OneNumber)}
 					valType = "int64"
 				}
+				if kvList.Value.One.OneFloat != nil {
+					val = []float64{Float64Value(kvList.Value.One.OneFloat)}
+					valType = "float64"
+				}
 				if kvList.Value.One.BoolTrue != nil {
 					val = []bool{true}
 					valType = "bool"
@@ -316,6 +329,7 @@ func (a *AwsParser) getCondition(c *Condition) []policy.Condition {
 				mixedTypes := false
 				var sl []string
 				var il []int64
+				var fl []float64
 				var bl []bool
 				for _, v := range kvList.Value.List {
 					ctype := ""
@@ -326,6 +340,10 @@ func (a *AwsParser) getCondition(c *Condition) []policy.Condition {
 					if v.OneNumber != nil {
 						il = append(il, Int64Value(v.OneNumber))
 						ctype = "int64"
+					}
+					if v.OneFloat != nil {
+						fl = append(fl, Float64Value(v.OneFloat))
+						ctype = "float64"
 					}
 					if v.BoolTrue != nil {
 						bl = append(bl, true)
@@ -351,6 +369,8 @@ func (a *AwsParser) getCondition(c *Condition) []policy.Condition {
 					val = sl
 				case "int64":
 					val = il
+				case "float64":
+					val = fl
 				case "bool":
 					val = bl
 				}
@@ -370,4 +390,18 @@ func (a *AwsParser) getCondition(c *Condition) []policy.Condition {
 	}
 
 	return cm
+}
+
+// stringProperty returns the string value of a top-level property, or "" when the property is
+// absent. A Statement-shaped object under a string-only key is rejected rather than asserted.
+func stringProperty(b *Block, key string) (string, error) {
+	x := b.GetProperty(key)
+	if x == nil {
+		return "", nil
+	}
+	s, ok := x.Value.(BlockString)
+	if !ok {
+		return "", fmt.Errorf("%w: %s", ErrPropertyNotString, key)
+	}
+	return s.String, nil
 }
