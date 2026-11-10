@@ -51,8 +51,8 @@ func TestAwsParser_GrammarForms(t *testing.T) {
 					"bedrock-agentcore:GetWorkloadAccessTokenForUserId",
 				},
 				Resources: []string{
-					"arn:aws:bedrock-agentcore:<.*>:<.*>:workload-identity-directory/default",
-					"arn:aws:bedrock-agentcore:<.*>:<.*>:workload-identity-directory/default/workload-identity/<.*>",
+					"arn:aws:bedrock-agentcore:*:*:workload-identity-directory/default",
+					"arn:aws:bedrock-agentcore:*:*:workload-identity-directory/default/workload-identity/*",
 				},
 				Allowed: true,
 			}},
@@ -62,7 +62,7 @@ func TestAwsParser_GrammarForms(t *testing.T) {
 			policyText: `{"Version": "2008-10-17", "Id": "Admin_Policy", "Statement": [{"Effect": "Allow", "Action": "*", "Resource": "arn:aws:s3:::amzn-s3-demo-bucket/*"}]}`,
 			want: []*policy.Policy{{
 				Id: "Admin_Policy:0", Version: "2008-10-17",
-				Actions: []string{"<.*>"}, Resources: []string{"arn:aws:s3:::amzn-s3-demo-bucket/<.*>"}, Allowed: true,
+				Actions: []string{"*"}, Resources: []string{"arn:aws:s3:::amzn-s3-demo-bucket/*"}, Allowed: true,
 			}},
 		},
 		{
@@ -70,7 +70,7 @@ func TestAwsParser_GrammarForms(t *testing.T) {
 			policyText: `{"Version": "2012-10-17", "Statement": [{"Sid": "DenyOutside", "Effect": "Deny", "NotAction": ["s3:Get*", "s3:List*"], "NotResource": "arn:aws:s3:::allowed-bucket"}]}`,
 			want: []*policy.Policy{{
 				Id: "DenyOutside", Version: "2012-10-17",
-				NotActions: []string{"s3:Get<.*>", "s3:List<.*>"}, NotResources: []string{"arn:aws:s3:::allowed-bucket"},
+				NotActions: []string{"s3:Get*", "s3:List*"}, NotResources: []string{"arn:aws:s3:::allowed-bucket"},
 			}},
 		},
 		{
@@ -78,7 +78,7 @@ func TestAwsParser_GrammarForms(t *testing.T) {
 			policyText: `{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": "*", "Action": "s3:GetObject", "Resource": "*"}]}`,
 			want: []*policy.Policy{{
 				Id: ":0", Version: "2012-10-17",
-				Subjects: []string{"<.*>"}, Actions: []string{"s3:GetObject"}, Resources: []string{"<.*>"}, Allowed: true,
+				Subjects: []string{"*"}, Actions: []string{"s3:GetObject"}, Resources: []string{"*"}, Allowed: true,
 			}},
 		},
 		{
@@ -98,7 +98,7 @@ func TestAwsParser_GrammarForms(t *testing.T) {
 					"ec2.amazonaws.com",
 					"79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be",
 				},
-				Actions: []string{"sts:AssumeRole"}, Resources: []string{"<.*>"}, Allowed: true,
+				Actions: []string{"sts:AssumeRole"}, Resources: []string{"*"}, Allowed: true,
 			}},
 		},
 		{
@@ -106,7 +106,7 @@ func TestAwsParser_GrammarForms(t *testing.T) {
 			policyText: `{"Version": "2012-10-17", "Statement": [{"Effect": "Deny", "NotPrincipal": {"AWS": "arn:aws:iam::123456789012:user/Bob"}, "Action": "s3:*", "Resource": "arn:aws:s3:::amzn-s3-demo-bucket"}]}`,
 			want: []*policy.Policy{{
 				Id: ":0", Version: "2012-10-17",
-				NotSubjects: []string{"arn:aws:iam::123456789012:user/Bob"}, Actions: []string{"s3:<.*>"}, Resources: []string{"arn:aws:s3:::amzn-s3-demo-bucket"},
+				NotSubjects: []string{"arn:aws:iam::123456789012:user/Bob"}, Actions: []string{"s3:*"}, Resources: []string{"arn:aws:s3:::amzn-s3-demo-bucket"},
 			}},
 		},
 		{
@@ -144,7 +144,7 @@ func TestAwsParser_GrammarForms(t *testing.T) {
 }}]}`,
 			want: []*policy.Policy{{
 				Id: ":0", Version: "2012-10-17",
-				Actions: []string{"s3:ListBucket"}, Resources: []string{"<.*>"}, Allowed: true,
+				Actions: []string{"s3:ListBucket"}, Resources: []string{"*"}, Allowed: true,
 				Condition: []policy.Condition{
 					{Operation: "NumericEquals", Key: []string{"s3:max-keys"}, Value: []any{[]int64{1, 2}}, Type: []string{"int64"}},
 					{Operation: "NumericLessThan", Key: []string{"s3:max-keys"}, Value: []any{[]int64{-5}}, Type: []string{"int64"}},
@@ -158,7 +158,7 @@ func TestAwsParser_GrammarForms(t *testing.T) {
 			policyText: `{"Statement": [{"Condition": {"Bool": {"aws:SecureTransport": "false"}}, "Resource": "*", "Action": "s3:GetObject", "Effect": "Deny", "Sid": "OrderDoesNotMatter"}], "Id": "ordered", "Version": "2012-10-17"}`,
 			want: []*policy.Policy{{
 				Id: "OrderDoesNotMatter", Version: "2012-10-17",
-				Actions: []string{"s3:GetObject"}, Resources: []string{"<.*>"},
+				Actions: []string{"s3:GetObject"}, Resources: []string{"*"},
 				Condition: []policy.Condition{{Operation: "Bool", Key: []string{"aws:SecureTransport"}, Value: []any{[]string{"false"}}, Type: []string{"string"}}},
 			}},
 		},
