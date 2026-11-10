@@ -56,16 +56,16 @@ func TestAwsParse(t *testing.T) {
 				require.Len(t, policies[0].Actions, 1)
 				require.EqualValues(t, "iam:CreateUser", policies[0].Actions[0])
 				require.Len(t, policies[0].Resources, 1)
-				require.EqualValues(t, "<.*>", policies[0].Resources[0])
+				require.EqualValues(t, "*", policies[0].Resources[0])
 				require.True(t, policies[1].Allowed)
 				require.Len(t, policies[1].Subjects, 0)
 				require.Len(t, policies[1].NotSubjects, 0)
 				require.Len(t, policies[1].NotActions, 0)
 				require.Len(t, policies[1].NotResources, 0)
 				require.Len(t, policies[1].Actions, 1)
-				require.EqualValues(t, "<.*>", policies[1].Actions[0])
+				require.EqualValues(t, "*", policies[1].Actions[0])
 				require.Len(t, policies[1].Resources, 1)
-				require.EqualValues(t, "<.*>", policies[1].Resources[0])
+				require.EqualValues(t, "*", policies[1].Resources[0])
 			},
 		},
 		{
@@ -94,7 +94,7 @@ func TestAwsParse(t *testing.T) {
 				require.EqualValues(t, "iam:CreateUser", policies[0].Actions[0])
 				require.EqualValues(t, "iam:RemoveUser", policies[0].Actions[1])
 				require.Len(t, policies[0].Resources, 1)
-				require.EqualValues(t, "<.*>", policies[0].Resources[0])
+				require.EqualValues(t, "*", policies[0].Resources[0])
 			},
 		},
 		{
@@ -144,7 +144,7 @@ func TestAwsParse(t *testing.T) {
 				require.Len(t, policies[0].Resources, 1)
 				require.EqualValues(
 					t,
-					"arn:aws:iam::<.*>:role/aws-reserved/sso.amazonaws.com/<.*>",
+					"arn:aws:iam::*:role/aws-reserved/sso.amazonaws.com/*",
 					policies[0].Resources[0],
 				)
 				require.Len(t, policies[0].Condition, 1)
@@ -301,7 +301,7 @@ func TestAwsParser_Parse(t *testing.T) {
 	require.Len(t, policies[0].Actions, 1)
 	require.EqualValues(t, "iam:CreateUser", policies[0].Actions[0])
 	require.Len(t, policies[0].Resources, 1)
-	require.EqualValues(t, "<.*>", policies[0].Resources[0])
+	require.EqualValues(t, "*", policies[0].Resources[0])
 
 	require.True(t, policies[1].Allowed)
 	require.Len(t, policies[1].Subjects, 0)
@@ -309,9 +309,9 @@ func TestAwsParser_Parse(t *testing.T) {
 	require.Len(t, policies[1].NotActions, 0)
 	require.Len(t, policies[1].NotResources, 0)
 	require.Len(t, policies[1].Actions, 1)
-	require.EqualValues(t, "<.*>", policies[1].Actions[0])
+	require.EqualValues(t, "*", policies[1].Actions[0])
 	require.Len(t, policies[1].Resources, 1)
-	require.EqualValues(t, "<.*>", policies[1].Resources[0])
+	require.EqualValues(t, "*", policies[1].Resources[0])
 }
 
 func TestAwsParser_Parse2(t *testing.T) {
@@ -351,7 +351,7 @@ func TestAwsParser_Parse2(t *testing.T) {
 	require.EqualValues(t, "iam:CreateUser", policies[0].Actions[0])
 	require.EqualValues(t, "iam:RemoveUser", policies[0].Actions[1])
 	require.Len(t, policies[0].Resources, 1)
-	require.EqualValues(t, "<.*>", policies[0].Resources[0])
+	require.EqualValues(t, "*", policies[0].Resources[0])
 }
 
 func TestAwsParser_Parse3(t *testing.T) {
@@ -412,7 +412,7 @@ func TestAwsParser_Parse3(t *testing.T) {
 	require.EqualValues(t, "iam:UpdateRoleDescription", policies[0].Actions[4])
 	require.EqualValues(t, "iam:UpdateAssumeRolePolicy", policies[0].Actions[5])
 	require.Len(t, policies[0].Resources, 1)
-	require.EqualValues(t, "arn:aws:iam::<.*>:role/aws-reserved/sso.amazonaws.com/<.*>", policies[0].Resources[0])
+	require.EqualValues(t, "arn:aws:iam::*:role/aws-reserved/sso.amazonaws.com/*", policies[0].Resources[0])
 
 	require.Len(t, policies[0].Condition, 1)
 
@@ -653,7 +653,7 @@ func TestAwsParser_Parse8(t *testing.T) {
 	require.Len(t, policies[0].Actions, 1)
 	require.EqualValues(t, "iam:CreateUser", policies[0].Actions[0])
 	require.Len(t, policies[0].Resources, 1)
-	require.EqualValues(t, "<.*>", policies[0].Resources[0])
+	require.EqualValues(t, "*", policies[0].Resources[0])
 
 	require.Len(t, policies[0].Condition, 1)
 

@@ -223,22 +223,20 @@ func (a *AwsParser) getAnyOrList(l *AnyOrList) []string {
 	}
 	if l.Item != nil {
 		if l.Item.Any {
-			return []string{"<.*>"}
+			return []string{"*"}
 		}
 		if l.Item.One != nil {
-			vs := StringValue(l.Item.One)
-			return []string{strings.ReplaceAll(vs, "*", "<.*>")}
+			return []string{StringValue(l.Item.One)}
 		}
 	}
 	if l.List != nil {
 		x := []string{}
 		for _, item := range l.List {
 			if item.Any {
-				x = append(x, "<.*>")
+				x = append(x, "*")
 			}
 			if item.One != nil {
-				vs := StringValue(item.One)
-				x = append(x, strings.ReplaceAll(vs, "*", "<.*>"))
+				x = append(x, StringValue(item.One))
 			}
 		}
 		return x
@@ -251,7 +249,7 @@ func (a *AwsParser) getSubjects(p *Principal) []string {
 		return []string{}
 	}
 	if p.Any {
-		return []string{"<.*>"}
+		return []string{"*"}
 	}
 	x := []string{}
 	if p.List != nil {
